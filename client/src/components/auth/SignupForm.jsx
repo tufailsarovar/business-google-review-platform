@@ -1,14 +1,17 @@
 import { useState } from "react";
+
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Divider,
   InputAdornment,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+
 import { motion, AnimatePresence } from "framer-motion";
 
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
@@ -19,10 +22,11 @@ import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import PersonAddAltRoundedIcon from "@mui/icons-material/PersonAddAltRounded";
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
 
 import {
   Link,
-  useNavigate,
 } from "react-router-dom";
 
 import useAuth from "../../hooks/useAuth";
@@ -50,21 +54,18 @@ const initialForm = {
 
 export default function SignupForm() {
   const { signup } = useAuth();
-  const navigate = useNavigate();
 
-  const [form, setForm] =
-    useState(initialForm);
+  const [form, setForm] = useState(initialForm);
 
-  const [errors, setErrors] =
-    useState({});
+  const [errors, setErrors] = useState({});
 
-  const [serverError, setServerError] =
-    useState("");
+  const [serverError, setServerError] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const updateField = field => event => {
+  const [submitted, setSubmitted] = useState(false);
+
+  const updateField = (field) => (event) => {
     let value = event.target.value;
 
     if (field === "mobile") {
@@ -73,12 +74,12 @@ export default function SignupForm() {
         .slice(0, 10);
     }
 
-    setForm(previous => ({
+    setForm((previous) => ({
       ...previous,
       [field]: value,
     }));
 
-    setErrors(previous => ({
+    setErrors((previous) => ({
       ...previous,
       [field]: "",
     }));
@@ -129,12 +130,10 @@ export default function SignupForm() {
 
     setErrors(nextErrors);
 
-    return (
-      Object.keys(nextErrors).length === 0
-    );
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async event => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!validate()) {
@@ -145,15 +144,14 @@ export default function SignupForm() {
     setServerError("");
 
     try {
-      const response = await signup({
-        businessName:
-          form.businessName.trim(),
+      await signup({
+        businessName: form.businessName.trim(),
 
-        name:
-          form.ownerName.trim(),
+        name: form.ownerName.trim(),
 
-        email:
-          form.email.trim().toLowerCase(),
+        email: form.email
+          .trim()
+          .toLowerCase(),
 
         phone: form.mobile
           ? form.mobile.replace(/\D/g, "")
@@ -162,36 +160,240 @@ export default function SignupForm() {
         password: form.password,
       });
 
-      const email =
-        form.email.trim().toLowerCase();
-
-      navigate(
-        `/verify-email?email=${encodeURIComponent(
-          email
-        )}`,
-        {
-          replace: true,
-          state: {
-            message:
-              response?.message ||
-              "Account created. Check your email for the verification link.",
-
-            businessId:
-              response?.businessId || null,
-          },
-        }
-      );
+      setSubmitted(true);
     } catch (error) {
       setServerError(
         getErrorMessage(
           error,
-          "Unable to create your account. Please try again."
+          "Unable to submit your registration request. Please try again."
         )
       );
     } finally {
       setLoading(false);
     }
   };
+
+  /* =========================================================
+     REGISTRATION SUBMITTED
+  ========================================================= */
+
+  if (submitted) {
+    return (
+      <MotionBox
+        initial={{
+          opacity: 0,
+          y: 18,
+          scale: 0.98,
+        }}
+        animate={{
+          opacity: 1,
+          y: 0,
+          scale: 1,
+        }}
+        transition={{
+          duration: 0.45,
+          ease: "easeOut",
+        }}
+      >
+        <Stack
+          spacing={2.2}
+          alignItems="center"
+          textAlign="center"
+          sx={{
+            py: {
+              xs: 2,
+              sm: 4,
+            },
+            px: {
+              xs: 1,
+              sm: 3,
+            },
+          }}
+        >
+          <MotionBox
+            initial={{
+              scale: 0,
+              rotate: -20,
+            }}
+            animate={{
+              scale: 1,
+              rotate: 0,
+            }}
+            transition={{
+              delay: 0.15,
+              duration: 0.45,
+              type: "spring",
+            }}
+            sx={{
+              width: {
+                xs: 68,
+                sm: 82,
+              },
+              height: {
+                xs: 68,
+                sm: 82,
+              },
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "50%",
+              backgroundColor: "success.main",
+              color: "success.contrastText",
+              boxShadow:
+                "0 12px 30px rgba(34,197,94,0.22)",
+            }}
+          >
+            <CheckCircleRoundedIcon
+              sx={{
+                fontSize: {
+                  xs: 38,
+                  sm: 48,
+                },
+              }}
+            />
+          </MotionBox>
+
+          <Box>
+            <Typography
+              component="h1"
+              fontWeight={900}
+              sx={{
+                fontSize: {
+                  xs: "1.35rem",
+                  sm: "1.8rem",
+                },
+                lineHeight: 1.2,
+              }}
+            >
+              Registration Submitted
+            </Typography>
+
+            <Typography
+              color="text.secondary"
+              sx={{
+                mt: 1,
+                fontSize: {
+                  xs: "0.78rem",
+                  sm: "0.9rem",
+                },
+                lineHeight: 1.6,
+                maxWidth: 470,
+                mx: "auto",
+              }}
+            >
+              Your business registration request
+              has been submitted successfully.
+              Our admin team will review your
+              request before activating your account.
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: 470,
+              p: {
+                xs: 1.7,
+                sm: 2.2,
+              },
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "warning.light",
+              backgroundColor:
+                "rgba(245,158,11,0.06)",
+            }}
+          >
+            <Stack
+              direction="row"
+              spacing={1.2}
+              alignItems="flex-start"
+              textAlign="left"
+            >
+              <HourglassTopRoundedIcon
+                color="warning"
+                sx={{
+                  mt: 0.15,
+                  flexShrink: 0,
+                }}
+              />
+
+              <Box>
+                <Typography
+                  fontWeight={800}
+                  sx={{
+                    fontSize: {
+                      xs: "0.82rem",
+                      sm: "0.9rem",
+                    },
+                  }}
+                >
+                  Waiting for admin approval
+                </Typography>
+
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    mt: 0.4,
+                    fontSize: {
+                      xs: "0.7rem",
+                      sm: "0.78rem",
+                    },
+                    lineHeight: 1.5,
+                  }}
+                >
+                  You will receive an email at{" "}
+                  <strong>
+                    {form.email
+                      .trim()
+                      .toLowerCase()}
+                  </strong>{" "}
+                  after your registration is approved.
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+
+          <Typography
+            color="text.secondary"
+            sx={{
+              fontSize: {
+                xs: "0.68rem",
+                sm: "0.76rem",
+              },
+              maxWidth: 440,
+              lineHeight: 1.5,
+            }}
+          >
+            The approval email will contain your
+            unique Business ID and a link to log in
+            to your TapRating business dashboard.
+          </Typography>
+
+          <MotionButton
+            component={Link}
+            to="/login"
+            variant="contained"
+            fullWidth
+            startIcon={<LoginRoundedIcon />}
+            endIcon={<ArrowForwardRoundedIcon />}
+            whileHover={{
+              y: -2,
+            }}
+            whileTap={{
+              scale: 0.98,
+            }}
+            sx={{
+              maxWidth: 470,
+              minHeight: 50,
+              borderRadius: 2.5,
+              fontWeight: 800,
+            }}
+          >
+            Back to Login
+          </MotionButton>
+        </Stack>
+      </MotionBox>
+    );
+  }
 
   return (
     <MotionBox
@@ -215,6 +417,7 @@ export default function SignupForm() {
         spacing={1.8}
       >
         {/* Server Error */}
+
         <AnimatePresence mode="wait">
           {serverError && (
             <MotionBox
@@ -248,6 +451,7 @@ export default function SignupForm() {
         </AnimatePresence>
 
         {/* Business Name */}
+
         <TextField
           required
           fullWidth
@@ -255,12 +459,8 @@ export default function SignupForm() {
           placeholder="Enter your business name"
           autoComplete="organization"
           value={form.businessName}
-          onChange={updateField(
-            "businessName"
-          )}
-          error={Boolean(
-            errors.businessName
-          )}
+          onChange={updateField("businessName")}
+          error={Boolean(errors.businessName)}
           helperText={
             errors.businessName ||
             "Example: Royal Feast"
@@ -269,9 +469,7 @@ export default function SignupForm() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <BusinessRoundedIcon
-                  fontSize="small"
-                />
+                <BusinessRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -279,6 +477,7 @@ export default function SignupForm() {
         />
 
         {/* Owner Name */}
+
         <TextField
           required
           fullWidth
@@ -286,12 +485,8 @@ export default function SignupForm() {
           placeholder="Enter your full name"
           autoComplete="name"
           value={form.ownerName}
-          onChange={updateField(
-            "ownerName"
-          )}
-          error={Boolean(
-            errors.ownerName
-          )}
+          onChange={updateField("ownerName")}
+          error={Boolean(errors.ownerName)}
           helperText={
             errors.ownerName ||
             "Enter the name of the business owner."
@@ -300,9 +495,7 @@ export default function SignupForm() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <PersonRoundedIcon
-                  fontSize="small"
-                />
+                <PersonRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -310,6 +503,7 @@ export default function SignupForm() {
         />
 
         {/* Email */}
+
         <TextField
           required
           fullWidth
@@ -322,15 +516,13 @@ export default function SignupForm() {
           error={Boolean(errors.email)}
           helperText={
             errors.email ||
-            "We'll use this email for account verification."
+            "We'll contact you here after admin approval."
           }
           disabled={loading}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <EmailRoundedIcon
-                  fontSize="small"
-                />
+                <EmailRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -338,6 +530,7 @@ export default function SignupForm() {
         />
 
         {/* Mobile */}
+
         <TextField
           fullWidth
           label="Mobile number"
@@ -360,9 +553,7 @@ export default function SignupForm() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <PhoneRoundedIcon
-                  fontSize="small"
-                />
+                <PhoneRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -370,6 +561,7 @@ export default function SignupForm() {
         />
 
         {/* Password */}
+
         <TextField
           required
           fullWidth
@@ -378,12 +570,8 @@ export default function SignupForm() {
           type="password"
           autoComplete="new-password"
           value={form.password}
-          onChange={updateField(
-            "password"
-          )}
-          error={Boolean(
-            errors.password
-          )}
+          onChange={updateField("password")}
+          error={Boolean(errors.password)}
           helperText={
             errors.password ||
             "Use at least 8 characters."
@@ -392,9 +580,7 @@ export default function SignupForm() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <LockRoundedIcon
-                  fontSize="small"
-                />
+                <LockRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -402,6 +588,7 @@ export default function SignupForm() {
         />
 
         {/* Confirm Password */}
+
         <TextField
           required
           fullWidth
@@ -410,12 +597,8 @@ export default function SignupForm() {
           type="password"
           autoComplete="new-password"
           value={form.confirmPassword}
-          onChange={updateField(
-            "confirmPassword"
-          )}
-          error={Boolean(
-            errors.confirmPassword
-          )}
+          onChange={updateField("confirmPassword")}
+          error={Boolean(errors.confirmPassword)}
           helperText={
             errors.confirmPassword ||
             "Enter the same password again."
@@ -424,16 +607,15 @@ export default function SignupForm() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <LockRoundedIcon
-                  fontSize="small"
-                />
+                <LockRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
           sx={fieldStyles}
         />
 
-        {/* Create Account */}
+        {/* Submit */}
+
         <MotionButton
           type="submit"
           variant="contained"
@@ -441,7 +623,14 @@ export default function SignupForm() {
           fullWidth
           disabled={loading}
           startIcon={
-            <PersonAddAltRoundedIcon />
+            loading ? (
+              <CircularProgress
+                size={20}
+                color="inherit"
+              />
+            ) : (
+              <PersonAddAltRoundedIcon />
+            )
           }
           whileHover={
             !loading
@@ -469,11 +658,12 @@ export default function SignupForm() {
           }}
         >
           {loading
-            ? "Creating account..."
-            : "Create Business Account"}
+            ? "Submitting request..."
+            : "Submit Registration Request"}
         </MotionButton>
 
         {/* Login Redirect */}
+
         <Divider sx={{ my: 0.5 }}>
           <Typography
             variant="caption"
@@ -490,12 +680,8 @@ export default function SignupForm() {
           variant="outlined"
           fullWidth
           disabled={loading}
-          startIcon={
-            <LoginRoundedIcon />
-          }
-          endIcon={
-            <ArrowForwardRoundedIcon />
-          }
+          startIcon={<LoginRoundedIcon />}
+          endIcon={<ArrowForwardRoundedIcon />}
           whileHover={{
             y: -2,
           }}
@@ -524,10 +710,9 @@ const fieldStyles = {
     borderRadius: 2.5,
     transition: "all 0.25s ease",
 
-    "&:hover .MuiOutlinedInput-notchedOutline":
-      {
-        borderColor: "primary.main",
-      },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+      borderColor: "primary.main",
+    },
 
     "&.Mui-focused": {
       boxShadow:

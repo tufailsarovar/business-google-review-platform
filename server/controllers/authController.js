@@ -22,7 +22,10 @@ const normalizeEmail = (email) =>
 const createVerificationToken = async (businessId) => {
   const token = crypto.randomBytes(32).toString("hex");
 
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const tokenHash = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
 
   await EmailVerification.deleteMany({
     business: businessId,
@@ -31,93 +34,156 @@ const createVerificationToken = async (businessId) => {
   await EmailVerification.create({
     business: businessId,
     token: tokenHash,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    expiresAt: new Date(
+      Date.now() + 24 * 60 * 60 * 1000
+    ),
   });
 
   return token;
 };
 
+/*
+ * BUSINESS SIGNUP
+ *
+ * Signup only creates a pending registration request.
+ * No JWT is generated.
+ * No verification email is sent at this stage.
+ * Admin must approve the request first.
+ */
 export const signup = async (req, res, next) => {
   try {
-    const { name, businessName, email, password, phone } = req.body;
+    const {
+      name,
+      businessName,
+      email,
+      password,
+      phone,
+    } = req.body;
 
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail =
+      normalizeEmail(email);
 
-    if (!name || !businessName || !normalizedEmail || !password) {
+    if (
+      !name ||
+      !businessName ||
+      !normalizedEmail ||
+      !password
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Name, business name, email and password are required.",
+        message:
+          "Name, business name, email and password are required.",
       });
     }
 
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters long.",
+        message:
+          "Password must be at least 8 characters long.",
       });
     }
 
-    const existingBusiness = await Business.findOne({
-      email: normalizedEmail,
-    });
+    const existingBusiness =
+      await Business.findOne({
+        email: normalizedEmail,
+      });
 
     if (existingBusiness) {
+      if (
+        existingBusiness.approvalStatus ===
+        "pending"
+      ) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Your registration request is already pending admin approval.",
+        });
+      }
+
+      if (
+        existingBusiness.approvalStatus ===
+        "approved"
+      ) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "An account with this email already exists.",
+        });
+      }
+
+      if (
+        existingBusiness.approvalStatus ===
+        "rejected"
+      ) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This registration request was rejected. Please contact support.",
+        });
+      }
+
       return res.status(409).json({
         success: false,
-        message: "An account with this email already exists.",
+        message:
+          "An account with this email already exists.",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword =
+      await bcrypt.hash(password, 12);
 
-    let businessId = generateBusinessId(businessName);
+    let businessId =
+      generateBusinessId(businessName);
 
-    while (await Business.exists({ businessId })) {
-      businessId = generateBusinessId(businessName);
+    while (
+      await Business.exists({ businessId })
+    ) {
+      businessId =
+        generateBusinessId(businessName);
     }
 
-    const business = await Business.create({
-      businessId,
-      name: String(name).trim(),
-      businessName: String(businessName).trim(),
-      email: normalizedEmail,
-      password: hashedPassword,
-      phone: phone ? String(phone).trim() : "",
-      role: "business",
-      isActive: true,
-      isEmailVerified: false,
-    });
+    const business =
+      await Business.create({
+        businessId,
 
-    const verificationToken = await createVerificationToken(business._id);
+        name: String(name).trim(),
 
-    try {
-      await sendVerificationEmail({
-        email: business.email,
-        name: business.name,
-        token: verificationToken,
+        businessName:
+          String(businessName).trim(),
+
+        email: normalizedEmail,
+
+        password: hashedPassword,
+
+        phone: phone
+          ? String(phone).trim()
+          : "",
+
+        role: "business",
+
+        approvalStatus: "pending",
+
+        isActive: false,
+
+        isEmailVerified: false,
+
+        status: "inactive",
       });
-    } catch (emailError) {
-      console.error("Verification email failed:", emailError.message);
-    }
-
-    const token = generateToken({
-      id: business._id,
-      role: business.role,
-    });
 
     return res.status(201).json({
       success: true,
-      message: "Account created successfully. Please verify your email.",
-      token,
+      message:
+        "Registration request submitted successfully. Your account is waiting for admin approval. You will receive your Business ID and login link by email after approval.",
+      registrationPending: true,
       user: {
         id: business._id,
-        businessId: business.businessId,
         name: business.name,
         businessName: business.businessName,
         email: business.email,
         phone: business.phone,
-        role: business.role,
-        isEmailVerified: business.isEmailVerified,
+        approvalStatus:
+          business.approvalStatus,
       },
     });
   } catch (error) {
@@ -125,16 +191,23 @@ export const signup = async (req, res, next) => {
   }
 };
 
-export const adminLogin = async (req, res, next) => {
+export const adminLogin = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } =
+      req.body;
 
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail =
+      normalizeEmail(email);
 
     if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required.",
+        message:
+          "Email and password are required.",
       });
     }
 
@@ -145,27 +218,35 @@ export const adminLogin = async (req, res, next) => {
     if (!admin) {
       return res.status(401).json({
         success: false,
-        message: "Invalid admin email or password.",
+        message:
+          "Invalid admin email or password.",
       });
     }
 
     if (admin.isActive === false) {
       return res.status(403).json({
         success: false,
-        message: "Admin account is inactive.",
+        message:
+          "Admin account is inactive.",
       });
     }
 
-    const passwordMatch = await bcrypt.compare(password, admin.password);
+    const passwordMatch =
+      await bcrypt.compare(
+        password,
+        admin.password
+      );
 
     if (!passwordMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid admin email or password.",
+        message:
+          "Invalid admin email or password.",
       });
     }
 
     admin.lastLoginAt = new Date();
+
     await admin.save();
 
     const token = generateToken({
@@ -175,7 +256,8 @@ export const adminLogin = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: "Admin login successful.",
+      message:
+        "Admin login successful.",
       token,
       user: {
         id: admin._id,
@@ -190,43 +272,95 @@ export const adminLogin = async (req, res, next) => {
   }
 };
 
-export const login = async (req, res, next) => {
+export const login = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } =
+      req.body;
 
-    const normalizedEmail = normalizeEmail(email);
+    const normalizedEmail =
+      normalizeEmail(email);
 
     if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required.",
+        message:
+          "Email and password are required.",
       });
     }
 
-    const business = await Business.findOne({
-      email: normalizedEmail,
-    }).select("+password");
+    const business =
+      await Business.findOne({
+        email: normalizedEmail,
+      }).select("+password");
 
     if (!business) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password.",
+        message:
+          "Invalid email or password.",
+      });
+    }
+
+    /*
+     * Approval check must happen before
+     * allowing business login.
+     */
+    if (
+      business.approvalStatus ===
+      "pending"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your registration request is still pending admin approval.",
+      });
+    }
+
+    if (
+      business.approvalStatus ===
+      "rejected"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your registration request was rejected. Please contact support.",
+      });
+    }
+
+    if (
+      business.approvalStatus !==
+      "approved"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your business account has not been approved yet.",
       });
     }
 
     if (business.isActive === false) {
       return res.status(403).json({
         success: false,
-        message: "Your business account is currently inactive.",
+        message:
+          "Your business account is currently inactive.",
       });
     }
 
-    const passwordMatch = await bcrypt.compare(password, business.password);
+    const passwordMatch =
+      await bcrypt.compare(
+        password,
+        business.password
+      );
 
     if (!passwordMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password.",
+        message:
+          "Invalid email or password.",
       });
     }
 
@@ -237,18 +371,26 @@ export const login = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: "Login successful.",
+      message:
+        "Login successful.",
       token,
       user: {
         id: business._id,
-        businessId: business.businessId,
+        businessId:
+          business.businessId,
         name: business.name,
-        businessName: business.businessName,
+        businessName:
+          business.businessName,
         email: business.email,
         phone: business.phone,
-        role: business.role || "business",
-        isEmailVerified: business.isEmailVerified,
-        isActive: business.isActive !== false,
+        role:
+          business.role || "business",
+        isEmailVerified:
+          business.isEmailVerified,
+        isActive:
+          business.isActive !== false,
+        approvalStatus:
+          business.approvalStatus,
       },
     });
   } catch (error) {
@@ -256,33 +398,45 @@ export const login = async (req, res, next) => {
   }
 };
 
-export const getMe = async (req, res, next) => {
+export const getMe = async (
+  req,
+  res,
+  next
+) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId =
+      req.user?.id ||
+      req.user?._id;
 
     const role = req.user?.role;
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required.",
+        message:
+          "Authentication required.",
       });
     }
 
     if (role === "admin") {
-      const admin = await Admin.findById(userId).select("-password");
+      const admin =
+        await Admin.findById(
+          userId
+        ).select("-password");
 
       if (!admin) {
         return res.status(404).json({
           success: false,
-          message: "Admin account not found.",
+          message:
+            "Admin account not found.",
         });
       }
 
       if (admin.isActive === false) {
         return res.status(403).json({
           success: false,
-          message: "Admin account is inactive.",
+          message:
+            "Admin account is inactive.",
         });
       }
 
@@ -298,12 +452,35 @@ export const getMe = async (req, res, next) => {
       });
     }
 
-    const business = await Business.findById(userId);
+    const business =
+      await Business.findById(
+        userId
+      );
 
     if (!business) {
       return res.status(404).json({
         success: false,
-        message: "Business account not found.",
+        message:
+          "Business account not found.",
+      });
+    }
+
+    if (
+      business.approvalStatus !==
+      "approved"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your business account has not been approved.",
+      });
+    }
+
+    if (business.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your business account is inactive.",
       });
     }
 
@@ -311,14 +488,21 @@ export const getMe = async (req, res, next) => {
       success: true,
       user: {
         id: business._id,
-        businessId: business.businessId,
+        businessId:
+          business.businessId,
         name: business.name,
-        businessName: business.businessName,
+        businessName:
+          business.businessName,
         email: business.email,
         phone: business.phone,
-        role: business.role || "business",
-        isEmailVerified: business.isEmailVerified,
-        isActive: business.isActive !== false,
+        role:
+          business.role || "business",
+        isEmailVerified:
+          business.isEmailVerified,
+        isActive:
+          business.isActive !== false,
+        approvalStatus:
+          business.approvalStatus,
       },
     });
   } catch (error) {
@@ -326,43 +510,58 @@ export const getMe = async (req, res, next) => {
   }
 };
 
-export const verifyEmail = async (req, res, next) => {
+export const verifyEmail = async (
+  req,
+  res,
+  next
+) => {
   try {
     const { token } = req.params;
 
     if (!token) {
       return res.status(400).json({
         success: false,
-        message: "Verification token is required.",
+        message:
+          "Verification token is required.",
       });
     }
 
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
-    const verification = await EmailVerification.findOne({
-      token: tokenHash,
-      expiresAt: {
-        $gt: new Date(),
-      },
-    });
+    const verification =
+      await EmailVerification.findOne({
+        token: tokenHash,
+        expiresAt: {
+          $gt: new Date(),
+        },
+      });
 
     if (!verification) {
       return res.status(400).json({
         success: false,
-        message: "Verification link is invalid or expired.",
+        message:
+          "Verification link is invalid or expired.",
       });
     }
 
-    const business = await Business.findById(verification.business);
+    const business =
+      await Business.findById(
+        verification.business
+      );
 
     if (!business) {
       return res.status(404).json({
         success: false,
-        message: "Business account not found.",
+        message:
+          "Business account not found.",
       });
     }
 
     business.isEmailVerified = true;
+
     await business.save();
 
     await EmailVerification.deleteMany({
@@ -371,232 +570,341 @@ export const verifyEmail = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: "Email verified successfully.",
+      message:
+        "Email verified successfully.",
     });
   } catch (error) {
     next(error);
   }
 };
 
-export const resendVerificationEmail = async (req, res, next) => {
-  try {
-    const normalizedEmail = normalizeEmail(req.body.email);
+export const resendVerificationEmail =
+  async (req, res, next) => {
+    try {
+      const normalizedEmail =
+        normalizeEmail(
+          req.body.email
+        );
 
-    if (!normalizedEmail) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required.",
+      if (!normalizedEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is required.",
+        });
+      }
+
+      const business =
+        await Business.findOne({
+          email: normalizedEmail,
+        });
+
+      if (!business) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "No account found with this email.",
+        });
+      }
+
+      if (
+        business.approvalStatus !==
+        "approved"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your business account must be approved before email verification.",
+        });
+      }
+
+      if (business.isEmailVerified) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This email is already verified.",
+        });
+      }
+
+      const verificationToken =
+        await createVerificationToken(
+          business._id
+        );
+
+      await sendVerificationEmail({
+        email: business.email,
+        name: business.name,
+        token: verificationToken,
       });
-    }
 
-    const business = await Business.findOne({
-      email: normalizedEmail,
-    });
-
-    if (!business) {
-      return res.status(404).json({
-        success: false,
-        message: "No account found with this email.",
+      return res.status(200).json({
+        success: true,
+        message:
+          "Verification email sent successfully.",
       });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    if (business.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: "This email is already verified.",
+export const forgotPassword =
+  async (req, res, next) => {
+    try {
+      const normalizedEmail =
+        normalizeEmail(
+          req.body.email
+        );
+
+      if (!normalizedEmail) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is required.",
+        });
+      }
+
+      const business =
+        await Business.findOne({
+          email: normalizedEmail,
+        });
+
+      if (!business) {
+        return res.status(200).json({
+          success: true,
+          message:
+            "If an account exists with this email, a password reset link has been sent.",
+        });
+      }
+
+      if (
+        business.approvalStatus !==
+        "approved"
+      ) {
+        return res.status(200).json({
+          success: true,
+          message:
+            "If an account exists with this email, a password reset link has been sent.",
+        });
+      }
+
+      const rawToken =
+        crypto.randomBytes(32).toString(
+          "hex"
+        );
+
+      const tokenHash = crypto
+        .createHash("sha256")
+        .update(rawToken)
+        .digest("hex");
+
+      await PasswordReset.deleteMany({
+        business: business._id,
       });
-    }
 
-    const verificationToken = await createVerificationToken(business._id);
-
-    await sendVerificationEmail({
-      email: business.email,
-      name: business.name,
-      token: verificationToken,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Verification email sent successfully.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const forgotPassword = async (req, res, next) => {
-  try {
-    const normalizedEmail = normalizeEmail(req.body.email);
-
-    if (!normalizedEmail) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required.",
+      await PasswordReset.create({
+        business: business._id,
+        token: tokenHash,
+        expiresAt: new Date(
+          Date.now() + 30 * 60 * 1000
+        ),
       });
-    }
 
-    const business = await Business.findOne({
-      email: normalizedEmail,
-    });
+      try {
+        await sendForgotPasswordEmail({
+          email: business.email,
+          name: business.name,
+          token: rawToken,
+        });
+      } catch (emailError) {
+        console.error(
+          "Password reset email failed:",
+          emailError.message
+        );
+      }
 
-    if (!business) {
       return res.status(200).json({
         success: true,
         message:
           "If an account exists with this email, a password reset link has been sent.",
       });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    const rawToken = crypto.randomBytes(32).toString("hex");
-
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
-
-    await PasswordReset.deleteMany({
-      business: business._id,
-    });
-
-    await PasswordReset.create({
-      business: business._id,
-      token: tokenHash,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-    });
-
+export const resetPassword =
+  async (req, res, next) => {
     try {
-      await sendForgotPasswordEmail({
-        email: business.email,
-        name: business.name,
-        token: rawToken,
+      const { token } = req.params;
+      const { password } = req.body;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reset token is required.",
+        });
+      }
+
+      if (
+        !password ||
+        password.length < 8
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Password must be at least 8 characters long.",
+        });
+      }
+
+      const tokenHash = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+      const resetRequest =
+        await PasswordReset.findOne({
+          token: tokenHash,
+          expiresAt: {
+            $gt: new Date(),
+          },
+        });
+
+      if (!resetRequest) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Reset link is invalid or expired.",
+        });
+      }
+
+      const business =
+        await Business.findById(
+          resetRequest.business
+        ).select("+password");
+
+      if (!business) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Business account not found.",
+        });
+      }
+
+      if (
+        business.approvalStatus !==
+        "approved"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your business account is not approved.",
+        });
+      }
+
+      business.password =
+        await bcrypt.hash(
+          password,
+          12
+        );
+
+      await business.save();
+
+      await PasswordReset.deleteMany({
+        business: business._id,
       });
-    } catch (emailError) {
-      console.error("Password reset email failed:", emailError.message);
-    }
 
-    return res.status(200).json({
-      success: true,
-      message:
-        "If an account exists with this email, a password reset link has been sent.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const resetPassword = async (req, res, next) => {
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: "Reset token is required.",
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password reset successfully.",
       });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    if (!password || password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters long.",
+export const changePassword =
+  async (req, res, next) => {
+    try {
+      const userId =
+        req.user?.id ||
+        req.user?._id;
+
+      const {
+        currentPassword,
+        newPassword,
+      } = req.body;
+
+      if (
+        !currentPassword ||
+        !newPassword
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Current password and new password are required.",
+        });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "New password must be at least 8 characters long.",
+        });
+      }
+
+      const business =
+        await Business.findById(
+          userId
+        ).select("+password");
+
+      if (!business) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Business account not found.",
+        });
+      }
+
+      if (
+        business.approvalStatus !==
+        "approved"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your business account is not approved.",
+        });
+      }
+
+      const passwordMatch =
+        await bcrypt.compare(
+          currentPassword,
+          business.password
+        );
+
+      if (!passwordMatch) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Current password is incorrect.",
+        });
+      }
+
+      business.password =
+        await bcrypt.hash(
+          newPassword,
+          12
+        );
+
+      await business.save();
+
+      return res.status(200).json({
+        success: true,
+        message:
+          "Password changed successfully.",
       });
+    } catch (error) {
+      next(error);
     }
-
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-    const resetRequest = await PasswordReset.findOne({
-      token: tokenHash,
-      expiresAt: {
-        $gt: new Date(),
-      },
-    });
-
-    if (!resetRequest) {
-      return res.status(400).json({
-        success: false,
-        message: "Reset link is invalid or expired.",
-      });
-    }
-
-    const business = await Business.findById(resetRequest.business).select(
-      "+password",
-    );
-
-    if (!business) {
-      return res.status(404).json({
-        success: false,
-        message: "Business account not found.",
-      });
-    }
-
-    business.password = await bcrypt.hash(password, 12);
-
-    await business.save();
-
-    await PasswordReset.deleteMany({
-      business: business._id,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Password reset successfully.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const changePassword = async (req, res, next) => {
-  try {
-    const userId = req.user?.id || req.user?._id;
-
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password and new password are required.",
-      });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "New password must be at least 8 characters long.",
-      });
-    }
-
-    const business = await Business.findById(userId).select("+password");
-
-    if (!business) {
-      return res.status(404).json({
-        success: false,
-        message: "Business account not found.",
-      });
-    }
-
-    const passwordMatch = await bcrypt.compare(
-      currentPassword,
-      business.password,
-    );
-
-    if (!passwordMatch) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password is incorrect.",
-      });
-    }
-
-    business.password = await bcrypt.hash(newPassword, 12);
-
-    await business.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Password changed successfully.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  };

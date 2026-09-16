@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
   Alert,
   Box,
@@ -10,6 +11,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+
 import { motion } from "framer-motion";
 
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
@@ -19,6 +21,7 @@ import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import PendingActionsRoundedIcon from "@mui/icons-material/PendingActionsRounded";
 
 import adminService from "../../services/adminService";
 
@@ -31,6 +34,7 @@ export default function Dashboard() {
     totalUsers: 0,
     totalRatings: 0,
     averageRating: 0,
+    pendingRequests: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -44,17 +48,34 @@ export default function Dashboard() {
         setLoading(true);
         setError("");
 
-        const response =
-          await adminService.getDashboardStats();
+        const [
+          dashboardResponse,
+          requestsResponse,
+        ] = await Promise.all([
+          adminService.getDashboardStats(),
+          adminService.getRegistrationRequests(),
+        ]);
 
         if (!mounted) return;
 
-        const payload = response?.data || response || {};
+        const payload =
+          dashboardResponse?.data ||
+          dashboardResponse ||
+          {};
 
         const data =
           payload?.stats ||
           payload?.data ||
           payload;
+
+        const requestsPayload =
+          requestsResponse?.data ||
+          requestsResponse ||
+          {};
+
+        const requests =
+          requestsPayload?.requests ||
+          [];
 
         setStats({
           totalBusinesses:
@@ -68,6 +89,13 @@ export default function Dashboard() {
 
           averageRating:
             Number(data?.averageRating) || 0,
+
+          pendingRequests:
+            Array.isArray(requests)
+              ? requests.length
+              : Number(
+                  requestsPayload?.total
+                ) || 0,
         });
       } catch (err) {
         if (!mounted) return;
@@ -132,6 +160,7 @@ export default function Dashboard() {
       }}
     >
       {/* Header */}
+
       <MotionBox
         initial={{
           opacity: 0,
@@ -216,12 +245,13 @@ export default function Dashboard() {
             lineHeight: 1.5,
           }}
         >
-          Monitor businesses, users, ratings, and platform
-          activity.
+          Monitor businesses, users, ratings,
+          and platform activity.
         </Typography>
       </MotionBox>
 
       {/* Error */}
+
       {error && (
         <MotionBox
           initial={{
@@ -256,7 +286,207 @@ export default function Dashboard() {
         </MotionBox>
       )}
 
+      {/* Registration Requests */}
+
+      <MotionCard
+        component={Link}
+        to="/admin/registration-requests"
+        initial={{
+          opacity: 0,
+          y: 12,
+        }}
+        animate={{
+          opacity: 1,
+          y: 0,
+        }}
+        whileHover={{
+          y: -3,
+        }}
+        whileTap={{
+          scale: 0.99,
+        }}
+        transition={{
+          duration: 0.35,
+        }}
+        elevation={0}
+        sx={{
+          display: "block",
+          textDecoration: "none",
+          color: "inherit",
+          mb: {
+            xs: 1.2,
+            sm: 2,
+            md: 2.5,
+          },
+          borderRadius: {
+            xs: 2,
+            sm: 2.5,
+          },
+          border: "1px solid",
+          borderColor:
+            stats.pendingRequests > 0
+              ? "warning.main"
+              : "divider",
+          background:
+            stats.pendingRequests > 0
+              ? "rgba(245, 158, 11, 0.045)"
+              : "background.paper",
+          overflow: "hidden",
+          cursor: "pointer",
+          transition:
+            "all .25s ease",
+          "&:hover": {
+            boxShadow:
+              "0 10px 28px rgba(15,23,42,0.08)",
+          },
+        }}
+      >
+        <CardContent
+          sx={{
+            p: {
+              xs: 1.25,
+              sm: 1.8,
+              md: 2,
+            },
+            "&:last-child": {
+              pb: {
+                xs: 1.25,
+                sm: 1.8,
+                md: 2,
+              },
+            },
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1.5}
+          >
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={{
+                xs: 1,
+                sm: 1.4,
+              }}
+              sx={{
+                minWidth: 0,
+              }}
+            >
+              <Box
+                component={motion.div}
+                whileHover={{
+                  scale: 1.08,
+                  rotate: -4,
+                }}
+                sx={{
+                  width: {
+                    xs: 34,
+                    sm: 42,
+                  },
+                  height: {
+                    xs: 34,
+                    sm: 42,
+                  },
+                  flexShrink: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: {
+                    xs: 1.4,
+                    sm: 1.8,
+                  },
+                  backgroundColor:
+                    "warning.main",
+                  color:
+                    "warning.contrastText",
+                  "& svg": {
+                    fontSize: {
+                      xs: 18,
+                      sm: 22,
+                    },
+                  },
+                }}
+              >
+                <PendingActionsRoundedIcon />
+              </Box>
+
+              <Box
+                sx={{
+                  minWidth: 0,
+                }}
+              >
+                <Typography
+                  fontWeight={900}
+                  sx={{
+                    fontSize: {
+                      xs: "0.82rem",
+                      sm: "1rem",
+                    },
+                  }}
+                >
+                  Registration Requests
+                </Typography>
+
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontSize: {
+                      xs: "0.62rem",
+                      sm: "0.74rem",
+                    },
+                    mt: 0.2,
+                  }}
+                >
+                  Review new business registrations
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={0.7}
+              sx={{
+                flexShrink: 0,
+              }}
+            >
+              <Typography
+                fontWeight={900}
+                color={
+                  stats.pendingRequests > 0
+                    ? "warning.main"
+                    : "text.primary"
+                }
+                sx={{
+                  fontSize: {
+                    xs: "1.25rem",
+                    sm: "1.55rem",
+                  },
+                }}
+              >
+                {loading
+                  ? "—"
+                  : stats.pendingRequests}
+              </Typography>
+
+              <ArrowForwardRoundedIcon
+                sx={{
+                  fontSize: {
+                    xs: 17,
+                    sm: 21,
+                  },
+                  color:
+                    "text.secondary",
+                }}
+              />
+            </Stack>
+          </Stack>
+        </CardContent>
+      </MotionCard>
+
       {/* Statistics */}
+
       <Box
         sx={{
           display: "grid",
@@ -314,7 +544,8 @@ export default function Dashboard() {
               "&:hover": {
                 boxShadow:
                   "0 10px 28px rgba(15,23,42,0.08)",
-                borderColor: "primary.light",
+                borderColor:
+                  "primary.light",
               },
             }}
           >
@@ -410,7 +641,9 @@ export default function Dashboard() {
                     lineHeight: 1.1,
                   }}
                 >
-                  {loading ? "—" : card.value}
+                  {loading
+                    ? "—"
+                    : card.value}
                 </Typography>
 
                 <Typography
@@ -434,6 +667,7 @@ export default function Dashboard() {
       </Box>
 
       {/* Quick Actions */}
+
       <MotionCard
         initial={{
           opacity: 0,
@@ -525,7 +759,7 @@ export default function Dashboard() {
               display: "grid",
               gridTemplateColumns: {
                 xs: "repeat(2, minmax(0, 1fr))",
-                sm: "repeat(3, minmax(0, 1fr))",
+                sm: "repeat(4, minmax(0, 1fr))",
               },
               gap: {
                 xs: 0.8,
@@ -538,21 +772,37 @@ export default function Dashboard() {
             }}
           >
             <ActionButton
+              to="/admin/registration-requests"
+              icon={
+                <PendingActionsRoundedIcon />
+              }
+              label="Requests"
+              primary={
+                stats.pendingRequests > 0
+              }
+            />
+
+            <ActionButton
               to="/admin/businesses"
-              icon={<BusinessRoundedIcon />}
+              icon={
+                <BusinessRoundedIcon />
+              }
               label="Businesses"
-              primary
             />
 
             <ActionButton
               to="/admin/users"
-              icon={<PeopleRoundedIcon />}
+              icon={
+                <PeopleRoundedIcon />
+              }
               label="Users"
             />
 
             <ActionButton
               to="/admin/review-templates"
-              icon={<StarRoundedIcon />}
+              icon={
+                <StarRoundedIcon />
+              }
               label="Templates"
             />
           </Box>
@@ -560,10 +810,15 @@ export default function Dashboard() {
       </MotionCard>
 
       {/* Loading */}
+
       {loading && (
         <MotionBox
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{
+            opacity: 0,
+          }}
+          animate={{
+            opacity: 1,
+          }}
           sx={{
             mt: 1.5,
             display: "flex",
@@ -589,7 +844,11 @@ function ActionButton({
   return (
     <Button
       component={motion.create(Button)}
-      variant={primary ? "contained" : "outlined"}
+      variant={
+        primary
+          ? "contained"
+          : "outlined"
+      }
       startIcon={icon}
       endIcon={
         <ArrowForwardRoundedIcon

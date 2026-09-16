@@ -11,6 +11,11 @@ import {
   getUsers,
   getAdminProfile,
 
+  getRegistrationRequests,
+  getRegistrationRequestById,
+  approveRegistrationRequest,
+  rejectRegistrationRequest,
+
   getReviewTemplates,
   getReviewTemplateById,
   createReviewTemplate,
@@ -33,19 +38,52 @@ router.use(adminMiddleware);
    ADMIN PROFILE
 ========================================================= */
 
-router.get("/profile", getAdminProfile);
+router.get(
+  "/profile",
+  getAdminProfile
+);
 
 /* =========================================================
    DASHBOARD
 ========================================================= */
 
-router.get("/dashboard", getDashboardStats);
+router.get(
+  "/dashboard",
+  getDashboardStats
+);
+
+/* =========================================================
+   REGISTRATION REQUESTS
+========================================================= */
+
+router.get(
+  "/registration-requests",
+  getRegistrationRequests
+);
+
+router.get(
+  "/registration-requests/:id",
+  getRegistrationRequestById
+);
+
+router.patch(
+  "/registration-requests/:id/approve",
+  approveRegistrationRequest
+);
+
+router.patch(
+  "/registration-requests/:id/reject",
+  rejectRegistrationRequest
+);
 
 /* =========================================================
    BUSINESSES
 ========================================================= */
 
-router.get("/businesses", getBusinesses);
+router.get(
+  "/businesses",
+  getBusinesses
+);
 
 router.get(
   "/businesses/:id",
@@ -76,7 +114,10 @@ router.delete(
    USERS
 ========================================================= */
 
-router.get("/users", getUsers);
+router.get(
+  "/users",
+  getUsers
+);
 
 /* =========================================================
    REVIEW TEMPLATES

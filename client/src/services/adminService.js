@@ -40,10 +40,40 @@ export const activateBusiness = (id) =>
     }
   );
 
+/* =========================================================
+   REGISTRATION REQUESTS
+========================================================= */
+
+export const getRegistrationRequests = () =>
+  api.get("/admin/registration-requests");
+
+export const getRegistrationRequestById = (id) =>
+  api.get(
+    `/admin/registration-requests/${encodeURIComponent(id)}`
+  );
+
+export const approveRegistrationRequest = (id) =>
+  api.patch(
+    `/admin/registration-requests/${encodeURIComponent(id)}/approve`
+  );
+
+export const rejectRegistrationRequest = (id) =>
+  api.patch(
+    `/admin/registration-requests/${encodeURIComponent(id)}/reject`
+  );
+
+/* =========================================================
+   USERS
+========================================================= */
+
 export const getUsers = (params = {}) =>
   api.get("/admin/users", {
     params,
   });
+
+/* =========================================================
+   REVIEW TEMPLATES
+========================================================= */
 
 export const getReviewTemplates = () =>
   api.get("/admin/review-templates");
@@ -68,6 +98,10 @@ export const deleteReviewTemplate = (id) =>
     `/admin/review-templates/${encodeURIComponent(id)}`
   );
 
+/* =========================================================
+   PLATFORM SETTINGS
+========================================================= */
+
 export const getSettings = () =>
   api.get("/admin/settings");
 
@@ -82,11 +116,19 @@ export default {
   deleteBusiness,
   deactivateBusiness,
   activateBusiness,
+
+  getRegistrationRequests,
+  getRegistrationRequestById,
+  approveRegistrationRequest,
+  rejectRegistrationRequest,
+
   getUsers,
+
   getReviewTemplates,
   createReviewTemplate,
   updateReviewTemplate,
   deleteReviewTemplate,
+
   getSettings,
   updateSettings,
 };

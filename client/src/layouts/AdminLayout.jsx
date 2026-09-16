@@ -5,9 +5,11 @@ import {
   Container,
   Stack,
 } from "@mui/material";
+
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+import AssignmentRoundedIcon from "@mui/icons-material/AssignmentRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 
@@ -23,6 +25,11 @@ const navigation = [
     label: "Businesses",
     path: "/admin/businesses",
     icon: <BusinessRoundedIcon fontSize="small" />,
+  },
+  {
+    label: "Registration Requests",
+    path: "/admin/registration-requests",
+    icon: <AssignmentRoundedIcon fontSize="small" />,
   },
   {
     label: "Users",
@@ -77,12 +84,10 @@ export default function AdminLayout() {
               minWidth: "max-content",
             }}
           >
-            {navigation.map(item => {
+            {navigation.map((item) => {
               const active =
                 location.pathname === item.path ||
-                location.pathname.startsWith(
-                  `${item.path}/`
-                );
+                location.pathname.startsWith(`${item.path}/`);
 
               return (
                 <Button

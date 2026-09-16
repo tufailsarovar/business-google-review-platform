@@ -31,6 +31,7 @@ import Businesses from "../pages/admin/Businesses";
 import BusinessDetails from "../pages/admin/BusinessDetails";
 import ManageBusinesses from "../pages/admin/ManageBusinesses";
 import Users from "../pages/admin/Users";
+import RegistrationRequests from "../pages/admin/RegistrationRequests";
 import ReviewTemplates from "../pages/admin/ReviewTemplates";
 import AdminSettings from "../pages/admin/Settings";
 
@@ -40,8 +41,8 @@ export default function AppRoutes() {
       {/* =========================
           PUBLIC / AUTH PAGES
       ========================= */}
+
       <Route element={<MainLayout />}>
-        {/* Root → Login */}
         <Route
           path="/"
           element={
@@ -52,7 +53,6 @@ export default function AppRoutes() {
           }
         />
 
-        {/* Login & Signup only for logged-out users */}
         <Route element={<PublicOnlyRoute />}>
           <Route
             path="/login"
@@ -65,7 +65,6 @@ export default function AppRoutes() {
           />
         </Route>
 
-        {/* Password / Email Verification */}
         <Route
           path="/forgot-password"
           element={<ForgotPassword />}
@@ -81,7 +80,6 @@ export default function AppRoutes() {
           element={<VerifyEmail />}
         />
 
-        {/* Admin Login */}
         <Route
           path="/admin/login"
           element={<AdminLogin />}
@@ -92,6 +90,7 @@ export default function AppRoutes() {
           PUBLIC BUSINESS RATING
           NO NAVBAR / NO FOOTER
       ========================= */}
+
       <Route
         path="/rate/:businessId"
         element={<BusinessRating />}
@@ -100,6 +99,7 @@ export default function AppRoutes() {
       {/* =========================
           BUSINESS DASHBOARD
       ========================= */}
+
       <Route
         element={
           <ProtectedRoute
@@ -153,6 +153,7 @@ export default function AppRoutes() {
       {/* =========================
           ADMIN DASHBOARD
       ========================= */}
+
       <Route
         element={
           <ProtectedRoute
@@ -164,6 +165,11 @@ export default function AppRoutes() {
           <Route
             path="/admin/dashboard"
             element={<AdminDashboard />}
+          />
+
+          <Route
+            path="/admin/registration-requests"
+            element={<RegistrationRequests />}
           />
 
           <Route
@@ -201,6 +207,7 @@ export default function AppRoutes() {
       {/* =========================
           FALLBACK
       ========================= */}
+
       <Route
         path="*"
         element={

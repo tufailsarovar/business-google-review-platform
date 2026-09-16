@@ -2,6 +2,7 @@ import Business from "../models/Business.js";
 import Admin from "../models/Admin.js";
 import ReviewTemplate from "../models/ReviewTemplate.js";
 import PlatformSettings from "../models/PlatformSettings.js";
+import { sendBusinessApprovalEmail } from "../services/emailService.js";
 
 /* =========================================================
    HELPERS
@@ -1186,6 +1187,294 @@ export const updateAdminSettings = async (
       message:
         "Platform settings updated successfully.",
       settings: safeSettings,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================================================
+   REGISTRATION REQUESTS
+   ========================================================= */
+
+/*
+ * GET
+ * /api/admin/registration-requests
+ *
+ * Returns businesses waiting for admin approval.
+ */
+export const getRegistrationRequests = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const requests = await Business.find({
+      approvalStatus: "pending",
+    })
+      .select(
+        "businessId name businessName email phone category description address city state country website createdAt approvalStatus isActive status"
+      )
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      requests,
+      total: requests.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+ * GET
+ * /api/admin/registration-requests/:id
+ *
+ * Returns one pending registration request.
+ */
+export const getRegistrationRequestById = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+
+    const request = await Business.findById(id)
+      .select("-password")
+      .lean();
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Registration request not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      request,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+ * PATCH
+ * /api/admin/registration-requests/:id/approve
+ *
+ * Approves the business and sends the Business ID
+ * + login link to the registered email.
+ */
+export const approveRegistrationRequest = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+
+    const business =
+      await Business.findById(id);
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Registration request not found.",
+      });
+    }
+
+    if (
+      business.approvalStatus ===
+      "approved"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This business has already been approved.",
+      });
+    }
+
+    if (
+      business.approvalStatus ===
+      "rejected"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A rejected registration cannot be approved.",
+      });
+    }
+
+    /*
+     * Business ID should already exist from registration.
+     * Generate a fallback only if an older pending
+     * record does not have one.
+     */
+    if (!business.businessId) {
+      const firstName =
+        String(
+          business.businessName ||
+            business.name ||
+            "Business"
+        )
+          .trim()
+          .split(/\s+/)[0];
+
+      const businessNamePart =
+        firstName.replace(
+          /[^a-zA-Z0-9]/g,
+          ""
+        ) || "Business";
+
+      const randomCode =
+        Math.random()
+          .toString(36)
+          .substring(2, 8)
+          .toUpperCase();
+
+      business.businessId =
+        `${businessNamePart}-${randomCode}`;
+    }
+
+    business.approvalStatus =
+      "approved";
+
+    business.isActive = true;
+
+    business.status = "active";
+
+    await business.save();
+
+    let emailSent = true;
+
+    try {
+      await sendBusinessApprovalEmail({
+        email: business.email,
+        name: business.name,
+        businessName:
+          business.businessName,
+        businessId:
+          business.businessId,
+      });
+    } catch (emailError) {
+      emailSent = false;
+
+      console.error(
+        "Business approval email failed:",
+        emailError
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: emailSent
+        ? "Business approved successfully. Approval email has been sent."
+        : "Business approved successfully, but the approval email could not be sent.",
+      emailSent,
+      business: {
+        _id: business._id,
+        businessId:
+          business.businessId,
+        name: business.name,
+        businessName:
+          business.businessName,
+        email: business.email,
+        phone: business.phone,
+        approvalStatus:
+          business.approvalStatus,
+        isActive:
+          business.isActive,
+        status:
+          business.status,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+ * PATCH
+ * /api/admin/registration-requests/:id/reject
+ *
+ * Rejects a pending registration request.
+ */
+export const rejectRegistrationRequest = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { id } = req.params;
+
+    const business =
+      await Business.findById(id);
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Registration request not found.",
+      });
+    }
+
+    if (
+      business.approvalStatus ===
+      "approved"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "An approved business cannot be rejected.",
+      });
+    }
+
+    if (
+      business.approvalStatus ===
+      "rejected"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This registration has already been rejected.",
+      });
+    }
+
+    business.approvalStatus =
+      "rejected";
+
+    business.isActive = false;
+
+    business.status = "inactive";
+
+    await business.save();
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Registration request rejected successfully.",
+      business: {
+        _id: business._id,
+        businessId:
+          business.businessId,
+        name: business.name,
+        businessName:
+          business.businessName,
+        email: business.email,
+        approvalStatus:
+          business.approvalStatus,
+        isActive:
+          business.isActive,
+        status:
+          business.status,
+      },
     });
   } catch (error) {
     next(error);

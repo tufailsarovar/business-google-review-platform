@@ -8,6 +8,7 @@ const businessSchema = new mongoose.Schema(
       unique: true,
       index: true,
       trim: true,
+      default: "",
     },
 
     name: {
@@ -112,9 +113,23 @@ const businessSchema = new mongoose.Schema(
       default: "",
     },
 
+    /*
+     * Account access status.
+     *
+     * pending  = signup request submitted, waiting for admin approval
+     * approved = admin approved the business and login is allowed
+     * rejected = admin rejected the signup request
+     */
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
+
     isActive: {
       type: Boolean,
-      default: true,
+      default: false,
       index: true,
     },
 
@@ -130,7 +145,7 @@ const businessSchema = new mongoose.Schema(
         "inactive",
         "suspended",
       ],
-      default: "active",
+      default: "inactive",
       index: true,
     },
 
@@ -196,11 +211,13 @@ businessSchema.index({
   email: "text",
 });
 
+businessSchema.index({
+  approvalStatus: 1,
+  createdAt: -1,
+});
+
 const Business =
   mongoose.models.Business ||
-  mongoose.model(
-    "Business",
-    businessSchema
-  );
+  mongoose.model("Business", businessSchema);
 
 export default Business;
