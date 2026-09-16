@@ -63,7 +63,7 @@ export default function Navbar() {
           backdropFilter: "blur(18px)",
           borderBottom: "1px solid",
           borderColor: "rgba(0,0,0,0.07)",
-          zIndex: theme => theme.zIndex.appBar,
+          zIndex: (theme) => theme.zIndex.appBar,
         }}
       >
         <Container maxWidth="lg">
@@ -97,23 +97,21 @@ export default function Navbar() {
                   letterSpacing: "-0.05em",
                 }}
               >
-                Review
+                Tap
                 <Box
                   component="span"
                   sx={{
                     color: "primary.main",
                   }}
                 >
-                  Flow
+                  Rating
                 </Box>
               </Typography>
             </MotionBox>
 
             <Box sx={{ flexGrow: 1 }} />
 
-            {/* =========================
-                DESKTOP NAVIGATION
-            ========================= */}
+            {/* DESKTOP NAVIGATION */}
             <Box
               sx={{
                 display: {
@@ -206,9 +204,7 @@ export default function Navbar() {
                       component={Link}
                       to="/signup"
                       variant="contained"
-                      startIcon={
-                        <PersonAddAltRoundedIcon />
-                      }
+                      startIcon={<PersonAddAltRoundedIcon />}
                       sx={{
                         minHeight: 42,
                         px: 2.2,
@@ -225,9 +221,7 @@ export default function Navbar() {
               )}
             </Box>
 
-            {/* =========================
-                MOBILE MENU BUTTON
-            ========================= */}
+            {/* MOBILE MENU BUTTON */}
             <MotionBox
               whileTap={{ scale: 0.88 }}
               sx={{
@@ -260,9 +254,7 @@ export default function Navbar() {
         </Container>
       </AppBar>
 
-      {/* =========================
-          MOBILE DRAWER
-      ========================= */}
+      {/* MOBILE DRAWER */}
       <AnimatePresence>
         {mobileOpen && (
           <MotionDrawer
@@ -321,14 +313,14 @@ export default function Navbar() {
                     letterSpacing: "-0.04em",
                   }}
                 >
-                  Review
+                  Tap
                   <Box
                     component="span"
                     sx={{
                       color: "primary.main",
                     }}
                   >
-                    Flow
+                    Rating
                   </Box>
                 </Typography>
 
@@ -422,9 +414,7 @@ export default function Navbar() {
                       </ListItemButton>
                     </ListItem>
 
-                    <ListItem
-                      disablePadding
-                    >
+                    <ListItem disablePadding>
                       <ListItemButton
                         onClick={handleLogout}
                         sx={{
@@ -480,9 +470,7 @@ export default function Navbar() {
                       </ListItemButton>
                     </ListItem>
 
-                    <ListItem
-                      disablePadding
-                    >
+                    <ListItem disablePadding>
                       <ListItemButton
                         component={Link}
                         to="/signup"

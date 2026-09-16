@@ -72,14 +72,14 @@ export default function Footer() {
                 letterSpacing: "-0.04em",
               }}
             >
-              Review
+              Tap
               <Box
                 component="span"
                 sx={{
                   color: "primary.main",
                 }}
               >
-                Flow
+                Rating
               </Box>
             </Typography>
 

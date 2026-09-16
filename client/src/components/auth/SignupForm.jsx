@@ -463,7 +463,7 @@ export default function SignupForm() {
           error={Boolean(errors.businessName)}
           helperText={
             errors.businessName ||
-            "Example: Royal Feast"
+            "Example: TapRating"
           }
           disabled={loading}
           InputProps={{

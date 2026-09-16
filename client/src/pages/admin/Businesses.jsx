@@ -23,6 +23,7 @@ import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 
 import adminService from "../../services/adminService";
 
@@ -43,8 +44,7 @@ export default function Businesses() {
         setLoading(true);
         setError("");
 
-        const response =
-          await adminService.getBusinesses();
+        const response = await adminService.getBusinesses();
 
         if (!mounted) return;
 
@@ -54,9 +54,7 @@ export default function Businesses() {
           response ||
           [];
 
-        setBusinesses(
-          Array.isArray(data) ? data : []
-        );
+        setBusinesses(Array.isArray(data) ? data : []);
       } catch (err) {
         if (!mounted) return;
 
@@ -525,6 +523,16 @@ export default function Businesses() {
                 business?.city ||
                 "";
 
+              const businessId =
+                business?.businessId ||
+                "";
+
+              const publicPageUrl = businessId
+                ? `/rate/${encodeURIComponent(
+                    businessId
+                  )}`
+                : "";
+
               const isActive =
                 business?.isActive !== false &&
                 business?.status !== "inactive";
@@ -877,7 +885,51 @@ export default function Businesses() {
                       </Stack>
                     )}
 
-                    {/* View */}
+                    {/* Public Page */}
+                    <Button
+                      component="a"
+                      href={publicPageUrl || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      fullWidth
+                      variant="contained"
+                      color="primary"
+                      startIcon={
+                        <OpenInNewRoundedIcon
+                          sx={{
+                            fontSize: {
+                              xs: 14,
+                              sm: 17,
+                            },
+                          }}
+                        />
+                      }
+                      disabled={!publicPageUrl}
+                      size="small"
+                      sx={{
+                        mt: {
+                          xs: 0.8,
+                          sm: 1.3,
+                        },
+                        minHeight: {
+                          xs: 31,
+                          sm: 39,
+                        },
+                        borderRadius: {
+                          xs: 1.3,
+                          sm: 1.8,
+                        },
+                        fontSize: {
+                          xs: "0.59rem",
+                          sm: "0.72rem",
+                        },
+                        fontWeight: 800,
+                      }}
+                    >
+                      Open Public Page
+                    </Button>
+
+                    {/* View Details */}
                     <Button
                       component={Link}
                       to={
@@ -901,8 +953,8 @@ export default function Businesses() {
                       size="small"
                       sx={{
                         mt: {
-                          xs: 0.8,
-                          sm: 1.3,
+                          xs: 0.6,
+                          sm: 0.9,
                         },
                         minHeight: {
                           xs: 31,
