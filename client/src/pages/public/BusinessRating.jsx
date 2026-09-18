@@ -552,7 +552,7 @@ export default function BusinessRating() {
               Powered by{" "}
               <Box
                 component="a"
-                href="https://TapReview.com"
+                href="https://glyrus.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{
@@ -564,7 +564,7 @@ export default function BusinessRating() {
                   },
                 }}
               >
-                TapReview
+                Glyrus
               </Box>
             </Typography>
           </Box>

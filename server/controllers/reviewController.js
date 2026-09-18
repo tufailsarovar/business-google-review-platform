@@ -5,6 +5,10 @@ import {
   generateReviewSuggestion,
 } from "../services/openaiService.js";
 
+import {
+  generateGeminiReviewSuggestion,
+} from "../services/geminiService.js";
+
 const getUserId = req =>
   req.user?.id || req.user?._id;
 
@@ -142,6 +146,112 @@ export const generateReview = async (
   }
 };
 
+/* =========================================================
+   GENERATE REVIEW WITH GEMINI
+   ========================================================= */
+
+export const generateGeminiReview = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      businessId,
+      rating,
+      keywords = [],
+      customerName = "",
+    } = req.body;
+
+    const normalizedRating =
+      normalizeRating(rating);
+
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        message: "Business ID is required.",
+      });
+    }
+
+    if (!normalizedRating) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Rating must be between 1 and 5.",
+      });
+    }
+
+    const business =
+      await getBusinessByPublicId(
+        businessId
+      );
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Business not found or inactive.",
+      });
+    }
+
+    const reviewTemplate =
+      await ReviewTemplate.findOne({
+        rating: normalizedRating,
+        isActive: true,
+      })
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
+
+    const review =
+      await generateGeminiReviewSuggestion({
+        businessName:
+          business.businessName ||
+          business.name,
+
+        category:
+          business.category || "",
+
+        description:
+          business.description || "",
+
+        rating: normalizedRating,
+
+        keywords:
+          Array.isArray(keywords)
+            ? keywords
+            : [],
+
+        customerName:
+          String(customerName).trim(),
+
+        reviewTemplate:
+          reviewTemplate?.template || "",
+      });
+
+    return res.status(200).json({
+      success: true,
+      review,
+
+      provider: "gemini",
+
+      templateUsed:
+        Boolean(reviewTemplate),
+
+      template:
+        reviewTemplate
+          ? {
+              id: reviewTemplate._id,
+              title: reviewTemplate.title,
+              rating: reviewTemplate.rating,
+            }
+          : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 /* =========================================================
    GET REVIEW STATS
    ========================================================= */

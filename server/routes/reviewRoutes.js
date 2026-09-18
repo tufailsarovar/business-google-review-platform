@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   generateReview,
+  generateGeminiReview,
   getReviewStats,
   recordRating,
   recordVisitor,
@@ -37,6 +38,11 @@ router.post(
 | Protected Business Routes
 |--------------------------------------------------------------------------
 */
+
+router.post(
+  "/generate-gemini",
+  generateGeminiReview
+);
 
 router.get(
   "/stats",
