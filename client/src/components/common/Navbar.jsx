@@ -104,7 +104,7 @@ export default function Navbar() {
                     color: "primary.main",
                   }}
                 >
-                  Rating
+                  Review
                 </Box>
               </Typography>
             </MotionBox>
@@ -320,7 +320,7 @@ export default function Navbar() {
                       color: "primary.main",
                     }}
                   >
-                    Rating
+                    Review
                   </Box>
                 </Typography>
 

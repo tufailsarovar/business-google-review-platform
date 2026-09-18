@@ -79,7 +79,7 @@ export default function Footer() {
                   color: "primary.main",
                 }}
               >
-                Rating
+                Review
               </Box>
             </Typography>
 
