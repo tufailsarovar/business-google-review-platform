@@ -147,7 +147,7 @@ export default function ResetPasswordForm() {
         color="text.secondary"
         sx={{ lineHeight: 1.7 }}
       >
-        Create a new password for your TapRating business
+        Create a new password for your TapReview business
         account. Your password should contain at least 8
         characters.
       </Typography>

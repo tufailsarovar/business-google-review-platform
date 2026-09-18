@@ -1006,7 +1006,7 @@ export const deleteReviewTemplate = async (
 ========================================================= */
 
 const DEFAULT_PLATFORM_SETTINGS = {
-  platformName: "TapRating",
+  platformName: "TapReview",
   supportEmail: "",
   supportPhone: "",
   contactAddress: "",

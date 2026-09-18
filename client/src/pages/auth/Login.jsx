@@ -53,7 +53,7 @@ export default function Login() {
                   lineHeight: 1.7,
                 }}
               >
-                Sign in to manage your TapRating business
+                Sign in to manage your TapReview business
                 account.
               </Typography>
             </Box>

@@ -1,7 +1,7 @@
 {
-  "name": "TapRating-server",
+  "name": "TapReview-server",
   "version": "1.0.0",
-  "description": "TapRating backend API for business Google review management",
+  "description": "TapReview backend API for business Google review management",
   "type": "module",
   "main": "server.js",
   "scripts": {

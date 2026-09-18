@@ -6,11 +6,11 @@ const verificationEmail = ({
   const displayName = name || "there";
 
   return {
-    subject: "Verify Your TapRating Account",
+    subject: "Verify Your TapReview Account",
     text: `
 Hello ${displayName},
 
-Welcome to TapRating!
+Welcome to TapReview!
 
 Please verify your email address to activate your account.
 
@@ -22,7 +22,7 @@ ${otp ? `Your verification OTP: ${otp}` : ""}
 If you did not create this account, you can safely ignore this email.
 
 Regards,
-TapRating Team
+TapReview Team
     `.trim(),
 
     html: `
@@ -34,7 +34,7 @@ TapRating Team
     name="viewport"
     content="width=device-width, initial-scale=1.0"
   />
-  <title>Verify Your TapRating Account</title>
+  <title>Verify Your TapReview Account</title>
 </head>
 
 <body
@@ -86,7 +86,7 @@ TapRating Team
                   line-height:1.3;
                 "
               >
-                TapRating
+                TapReview
               </h1>
 
               <p
@@ -133,7 +133,7 @@ TapRating Team
                   color:#4b5563;
                 "
               >
-                Thanks for creating your TapRating account.
+                Thanks for creating your TapReview account.
                 Please verify your email address to continue.
               </p>
 
@@ -226,7 +226,7 @@ TapRating Team
                   color:#6b7280;
                 "
               >
-                If you did not create a TapRating account,
+                If you did not create a TapReview account,
                 you can safely ignore this email.
               </p>
 
@@ -248,7 +248,7 @@ TapRating Team
                   color:#6b7280;
                 "
               >
-                © ${new Date().getFullYear()} TapRating.
+                © ${new Date().getFullYear()} TapReview.
                 All rights reserved.
               </p>
             </td>

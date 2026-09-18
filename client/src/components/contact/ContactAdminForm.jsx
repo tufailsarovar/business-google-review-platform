@@ -231,7 +231,7 @@ export default function ContactAdminForm({
           lineHeight: 1.6,
         }}
       >
-        Your message will be sent to the TapRating admin team.
+        Your message will be sent to the TapReview admin team.
       </Typography>
 
       <Button

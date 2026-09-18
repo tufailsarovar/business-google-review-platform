@@ -5,12 +5,12 @@ const forgotPasswordEmail = ({
   const displayName = name || "there";
 
   return {
-    subject: "Reset Your TapRating Password",
+    subject: "Reset Your TapReview Password",
 
     text: `
 Hello ${displayName},
 
-We received a request to reset the password for your TapRating account.
+We received a request to reset the password for your TapReview account.
 
 Reset your password using the link below:
 
@@ -21,7 +21,7 @@ This password reset link is temporary and will expire for security reasons.
 If you did not request a password reset, you can safely ignore this email.
 
 Regards,
-TapRating Team
+TapReview Team
     `.trim(),
 
     html: `
@@ -33,7 +33,7 @@ TapRating Team
     name="viewport"
     content="width=device-width, initial-scale=1.0"
   />
-  <title>Reset Your TapRating Password</title>
+  <title>Reset Your TapReview Password</title>
 </head>
 
 <body
@@ -89,7 +89,7 @@ TapRating Team
                   line-height:1.3;
                 "
               >
-                TapRating
+                TapReview
               </h1>
 
               <p
@@ -139,7 +139,7 @@ TapRating Team
                 "
               >
                 We received a request to reset the password
-                associated with your TapRating account.
+                associated with your TapReview account.
               </p>
 
               <div
@@ -244,7 +244,7 @@ TapRating Team
                   color:#6b7280;
                 "
               >
-                © ${new Date().getFullYear()} TapRating.
+                © ${new Date().getFullYear()} TapReview.
                 All rights reserved.
               </p>
             </td>

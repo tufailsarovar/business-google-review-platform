@@ -62,7 +62,7 @@ export default function ResetPassword() {
                   lineHeight: 1.7,
                 }}
               >
-                Create a new password for your TapRating
+                Create a new password for your TapReview
                 account.
               </Typography>
             </Box>

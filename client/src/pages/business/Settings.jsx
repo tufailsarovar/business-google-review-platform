@@ -184,7 +184,7 @@ export default function Settings() {
                       }}
                     >
                       Allow customers to access your public
-                      TapRating rating page.
+                      TapReview rating page.
                     </Typography>
                   </Box>
                 </Stack>
@@ -379,7 +379,7 @@ export default function Settings() {
                 }}
               >
                 Basic information associated with your
-                TapRating business account.
+                TapReview business account.
               </Typography>
 
               <Divider sx={{ my: 3 }} />

@@ -127,7 +127,7 @@ export default function Footer() {
           sx={{ py: 2 }}
         >
           <Typography variant="caption" color="text.secondary">
-            © {currentYear} TapRating. All rights reserved.
+            © {currentYear} TapReview. All rights reserved.
           </Typography>
 
           <Typography

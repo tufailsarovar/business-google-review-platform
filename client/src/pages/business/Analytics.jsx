@@ -643,7 +643,7 @@ export default function Analytics() {
                 }}
               >
                 Your average rating from customers using
-                TapRating.
+                TapReview.
               </Typography>
 
               <Box

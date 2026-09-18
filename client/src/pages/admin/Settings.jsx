@@ -19,7 +19,7 @@ import adminService from "../../services/adminService";
 
 export default function Settings() {
   const [settings, setSettings] = useState({
-    siteName: "TapRating",
+    siteName: "TapReview",
     supportEmail: "",
     maintenanceMode: false,
     allowBusinessRegistration: true,
@@ -239,7 +239,7 @@ export default function Settings() {
                   }}
                 >
                   Basic information used across the
-                  TapRating platform.
+                  TapReview platform.
                 </Typography>
 
                 <Divider sx={{ mb: 3 }} />

@@ -4,7 +4,7 @@ const platformSettingsSchema = new mongoose.Schema(
   {
     platformName: {
       type: String,
-      default: "TapRating",
+      default: "TapReview",
       trim: true,
     },
 

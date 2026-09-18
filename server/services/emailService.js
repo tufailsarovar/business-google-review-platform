@@ -98,7 +98,7 @@ export const sendBusinessApprovalEmail =
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>TapRating Account Approved</title>
+          <title>TapReview Account Approved</title>
         </head>
 
         <body
@@ -143,7 +143,7 @@ export const sendBusinessApprovalEmail =
                     font-weight:800;
                   "
                 >
-                  TapRating
+                  TapReview
                 </div>
               </div>
 
@@ -179,7 +179,7 @@ export const sendBusinessApprovalEmail =
               >
                 Your business registration request for
                 <strong>${safeBusinessName}</strong>
-                has been approved by the TapRating admin team.
+                has been approved by the TapReview admin team.
               </p>
 
               <div
@@ -225,7 +225,7 @@ export const sendBusinessApprovalEmail =
                   margin:0 0 25px;
                 "
               >
-                You can now access your TapRating business dashboard
+                You can now access your TapReview business dashboard
                 using the email address and password you provided
                 during registration.
               </p>
@@ -249,7 +249,7 @@ export const sendBusinessApprovalEmail =
                     font-weight:700;
                   "
                 >
-                  Login to TapRating
+                  Login to TapReview
                 </a>
               </div>
 
@@ -263,7 +263,7 @@ export const sendBusinessApprovalEmail =
                 "
               >
                 If you did not submit this registration request,
-                please contact TapRating support.
+                please contact TapReview support.
               </p>
 
             </div>
@@ -276,7 +276,7 @@ export const sendBusinessApprovalEmail =
                 margin-top:20px;
               "
             >
-              © ${new Date().getFullYear()} TapRating. All rights reserved.
+              © ${new Date().getFullYear()} TapReview. All rights reserved.
             </p>
           </div>
         </body>
@@ -287,7 +287,7 @@ export const sendBusinessApprovalEmail =
       from: smtpFrom,
       to: email,
       subject:
-        "Your TapRating business account has been approved",
+        "Your TapReview business account has been approved",
       html,
     });
 
@@ -327,7 +327,7 @@ export const sendVerificationEmail =
       from: smtpFrom,
       to: email,
       subject:
-        "Verify your TapRating account",
+        "Verify your TapReview account",
       html,
     });
 
@@ -367,7 +367,7 @@ export const sendForgotPasswordEmail =
       from: smtpFrom,
       to: email,
       subject:
-        "Reset your TapRating password",
+        "Reset your TapReview password",
       html,
     });
 
@@ -415,7 +415,7 @@ export const sendSupportEmail =
       replyTo: email,
       subject:
         subject ||
-        "TapRating Support Request",
+        "TapReview Support Request",
       html,
     });
 

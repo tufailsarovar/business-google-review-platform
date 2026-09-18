@@ -98,7 +98,7 @@ export default function ContactAdmin() {
             }}
           >
             Have a question or need help? Send a support
-            request to the TapRating administration team.
+            request to the TapReview administration team.
           </Typography>
 
           {/* Response Time */}
@@ -264,7 +264,7 @@ export default function ContactAdmin() {
               lineHeight: 1.6,
             }}
           >
-            Support requests are reviewed by the TapRating
+            Support requests are reviewed by the TapReview
             admin team. You can expect a reply within 24 hours.
           </Typography>
         </Stack>

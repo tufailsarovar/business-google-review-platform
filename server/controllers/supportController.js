@@ -80,7 +80,7 @@ export const sendSupportRequest = async (
       email: normalizedEmail,
       subject:
         normalizedSubject ||
-        "TapRating Support Request",
+        "TapReview Support Request",
       message: normalizedMessage,
       business,
     });

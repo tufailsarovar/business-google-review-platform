@@ -72,7 +72,7 @@ app.use(
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "TapRating API is running.",
+    message: "TapReview API is running.",
     environment: process.env.NODE_ENV || "development",
   });
 });
@@ -80,7 +80,7 @@ app.get("/", (req, res) => {
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "TapRating API is healthy.",
+    message: "TapReview API is healthy.",
     timestamp: new Date().toISOString(),
   });
 });
@@ -109,12 +109,12 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       console.log(
-        `TapRating server running on port ${PORT}`
+        `TapReview server running on port ${PORT}`
       );
     });
   } catch (error) {
     console.error(
-      "Failed to start TapRating server:",
+      "Failed to start TapReview server:",
       error.message
     );
 

@@ -141,7 +141,7 @@ export default function AdminLogin() {
                 color="text.secondary"
                 sx={{ mt: 1 }}
               >
-                Sign in to manage TapRating.
+                Sign in to manage TapReview.
               </Typography>
             </Box>
 

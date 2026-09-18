@@ -218,7 +218,7 @@ export default function Businesses() {
               }}
             >
               View and manage businesses registered on
-              TapRating.
+              TapReview.
             </Typography>
           </Box>
 

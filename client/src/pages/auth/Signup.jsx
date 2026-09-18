@@ -54,7 +54,7 @@ export default function Signup() {
                 }}
               >
                 Create your business account and start using
-                TapRating.
+                TapReview.
               </Typography>
             </Box>
 

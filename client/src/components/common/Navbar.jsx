@@ -516,7 +516,7 @@ export default function Navbar() {
                   variant="caption"
                   color="text.secondary"
                 >
-                  TapRating
+                  TapReview
                 </Typography>
 
                 <Typography

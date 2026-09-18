@@ -360,7 +360,7 @@ export default function LoginForm() {
               px: 1,
             }}
           >
-            New to TapRating?
+            New to TapReview?
           </Typography>
         </Divider>
 

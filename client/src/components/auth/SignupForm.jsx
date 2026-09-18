@@ -365,7 +365,7 @@ export default function SignupForm() {
           >
             The approval email will contain your
             unique Business ID and a link to log in
-            to your TapRating business dashboard.
+            to your TapReview business dashboard.
           </Typography>
 
           <MotionButton
@@ -463,7 +463,7 @@ export default function SignupForm() {
           error={Boolean(errors.businessName)}
           helperText={
             errors.businessName ||
-            "Example: TapRating"
+            "Example: TapReview"
           }
           disabled={loading}
           InputProps={{

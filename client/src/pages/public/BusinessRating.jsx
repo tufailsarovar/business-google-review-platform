@@ -552,7 +552,7 @@ export default function BusinessRating() {
               Powered by{" "}
               <Box
                 component="a"
-                href="https://TapRating.com"
+                href="https://TapReview.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{
@@ -564,7 +564,7 @@ export default function BusinessRating() {
                   },
                 }}
               >
-                TapRating
+                TapReview
               </Box>
             </Typography>
           </Box>

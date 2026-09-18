@@ -1,4 +1,4 @@
-export const APP_NAME = "TapRating";
+export const APP_NAME = "TapReview";
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -51,7 +51,7 @@ export const PUBLIC_BUSINESS_ROUTE = (businessId) =>
   `/rate/${encodeURIComponent(businessId || "")}`;
 
 export const STORAGE_KEYS = {
-  TOKEN: "TapRating_token",
+  TOKEN: "TapReview_token",
 };
 
 export const PASSWORD_MIN_LENGTH = 8;
