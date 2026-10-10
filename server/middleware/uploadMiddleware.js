@@ -1,94 +1,30 @@
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
-const uploadDirectory = path.resolve(
-  process.cwd(),
-  "uploads"
-);
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-if (!fs.existsSync(uploadDirectory)) {
-  fs.mkdirSync(uploadDirectory, {
-    recursive: true,
-  });
-}
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-const storage = multer.diskStorage({
-  destination: (
-    req,
-    file,
-    cb
-  ) => {
-    cb(null, uploadDirectory);
-  },
-
-  filename: (
-    req,
-    file,
-    cb
-  ) => {
-    const extension =
-      path.extname(file.originalname);
-
-    const baseName =
-      path
-        .basename(
-          file.originalname,
-          extension
-        )
-        .replace(
-          /[^a-zA-Z0-9-_]/g,
-          "-"
-        )
-        .toLowerCase();
-
-    const uniqueName = `${baseName}-${Date.now()}-${Math.round(
-      Math.random() * 1e9
-    )}${extension}`;
-
-    cb(null, uniqueName);
-  },
-});
-
-const allowedMimeTypes = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
-
-const fileFilter = (
-  req,
-  file,
-  cb
-) => {
-  if (
-    allowedMimeTypes.includes(
-      file.mimetype
-    )
-  ) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error(
-        "Only JPG, JPEG, PNG and WEBP images are allowed."
-      ),
-      false
-    );
+const fileFilter = (req, file, callback) => {
+  if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+    const error = new Error("Only JPG, PNG, and WEBP images are allowed.");
+    error.statusCode = 400;
+    return callback(error);
   }
+
+  callback(null, true);
 };
+
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  fileFilter,
   limits: {
-    fileSize:
-      5 * 1024 * 1024,
+    fileSize: MAX_FILE_SIZE,
     files: 1,
   },
+  fileFilter,
 });
 
-export const uploadSingleImage =
-  upload.single("image");
+export const uploadSingleImage = upload.single("image");
 
 export default upload;

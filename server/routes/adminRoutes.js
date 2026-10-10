@@ -28,6 +28,7 @@ import {
 
 import authMiddleware from "../middleware/authMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
+import { uploadSingleImage } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -85,9 +86,11 @@ router.get(
   getBusinesses
 );
 
-router.get(
+router.put(
   "/businesses/:id",
-  getBusinessById
+  adminMiddleware, // Keep your existing admin authentication middleware
+  uploadSingleImage,
+  updateBusiness
 );
 
 router.put(

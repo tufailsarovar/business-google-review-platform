@@ -81,9 +81,10 @@ export default function Profile() {
     "Address not added";
 
   const googleUrl =
-    business?.googleReviewUrl ||
-    business?.googleUrl ||
-    "";
+  business?.googleBusiness?.reviewUrl ||
+  business?.googleReviewUrl ||
+  business?.googleUrl ||
+  "";
 
   return (
     <Box sx={{ width: "100%", overflow: "hidden" }}>

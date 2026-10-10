@@ -51,6 +51,12 @@ export const adminDeleteBusiness = id =>
     `/admin/businesses/${encodeURIComponent(id)}`
   );
 
+  export const getBusinessSettings = () =>
+  api.get("/business/settings");
+
+export const updateBusinessSettings = data =>
+  api.put("/business/settings", data);
+
 export default {
   getMyBusiness,
   getPublicBusiness,

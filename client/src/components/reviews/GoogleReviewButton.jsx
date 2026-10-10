@@ -1,13 +1,9 @@
+
 import { useState } from "react";
-
-import {
-  Alert,
-  Button,
-  Snackbar,
-} from "@mui/material";
-
+import { Alert, Button, Snackbar } from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import DoneRoundedIcon from "@mui/icons-material/DoneRounded";
 
 export default function GoogleReviewButton({
   googleUrl = "",
@@ -15,127 +11,117 @@ export default function GoogleReviewButton({
   fullWidth = true,
   disabled = false,
 }) {
-  const [error, setError] =
-    useState("");
+  const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const reviewText =
-    String(review || "").trim();
+  const reviewText = String(review ?? "").trim();
 
-  const isConfigured =
-    Boolean(
-      String(googleUrl || "").trim()
-    );
+  const copySynchronously = (text) => {
+    const textarea = document.createElement("textarea");
 
-  const handleSubmit = async () => {
-    if (!isConfigured) {
-      setError(
-        "Google review link is not configured."
-      );
-      return;
-    }
+    textarea.value = text;
+    textarea.readOnly = true;
 
-    if (!reviewText) {
-      setError(
-        "Please generate your review first."
-      );
-      return;
-    }
+    Object.assign(textarea.style, {
+      position: "fixed",
+      left: "0",
+      top: "0",
+      width: "2px",
+      height: "2px",
+      padding: "0",
+      border: "none",
+      opacity: "0.01",
+      fontSize: "16px",
+      zIndex: "99999",
+    });
 
-    let googleWindow = null;
+    document.body.appendChild(textarea);
+
+    let success = false;
 
     try {
-      const parsedUrl =
-        new URL(googleUrl);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, text.length);
+      success = document.execCommand("copy");
+    } catch {
+      success = false;
+    } finally {
+      textarea.remove();
+    }
+
+    return success;
+  };
+
+  const handleSubmit = async () => {
+    if (loading) return;
+
+    if (!reviewText) {
+      setMessage("Write a review or generate one with AI first.");
+      return;
+    }
+
+    let destination;
+
+    try {
+      destination = new URL(String(googleUrl).trim());
 
       if (
-        !["http:", "https:"].includes(
-          parsedUrl.protocol
-        )
+        !["https:", "http:"].includes(destination.protocol) ||
+        !destination.hostname
       ) {
-        throw new Error(
-          "Invalid Google review URL."
-        );
+        throw new Error("Invalid URL");
       }
+    } catch {
+      setMessage("The Google review link is missing or invalid.");
+      return;
+    }
 
-      /*
-       * Open immediately from the user's
-       * click to avoid popup blocking.
-       */
-      googleWindow =
-        window.open(
-          "",
-          "_blank"
-        );
+    setLoading(true);
+    setCopied(false);
+    setMessage("");
 
-      let copied = false;
+    // Attempt copying immediately, before any await.
+    let copySucceeded = copySynchronously(reviewText);
 
+    // Modern clipboard API fallback.
+    if (!copySucceeded && navigator.clipboard?.writeText) {
       try {
-        await navigator.clipboard.writeText(
-          reviewText
-        );
-
-        copied = true;
+        await navigator.clipboard.writeText(reviewText);
+        copySucceeded = true;
       } catch {
-        try {
-          const textarea =
-            document.createElement(
-              "textarea"
-            );
-
-          textarea.value =
-            reviewText;
-
-          textarea.style.position =
-            "fixed";
-          textarea.style.left =
-            "-9999px";
-          textarea.style.top = "0";
-
-          document.body.appendChild(
-            textarea
-          );
-
-          textarea.focus();
-          textarea.select();
-
-          copied =
-            document.execCommand(
-              "copy"
-            );
-
-          document.body.removeChild(
-            textarea
-          );
-        } catch {
-          copied = false;
-        }
+        copySucceeded = false;
       }
+    }
 
-      if (!copied) {
-        if (googleWindow) {
-          googleWindow.close();
-        }
+    if (copySucceeded) {
+      setCopied(true);
+    }
 
-        throw new Error(
-          "Unable to copy the review. Please use the Copy button first."
-        );
-      }
+    // Open Google Reviews directly; do not show a copy dialog.
+    const openedWindow = window.open(
+      destination.href,
+      "_blank",
+      "noopener,noreferrer"
+    );
 
-      if (googleWindow) {
-        googleWindow.location.href =
-          parsedUrl.toString();
-      } else {
-        window.location.href =
-          parsedUrl.toString();
-      }
-    } catch (err) {
-      if (googleWindow) {
-        googleWindow.close();
-      }
+    setLoading(false);
 
-      setError(
-        err?.message ||
-          "Unable to open Google review page."
+    if (!openedWindow) {
+      setMessage(
+        copySucceeded
+          ? "Review copied. Your browser blocked the Google Reviews tab; allow pop-ups to open it."
+          : "Copying was blocked by your browser, and the Google Reviews tab was blocked too."
+      );
+      return;
+    }
+
+    if (copySucceeded) {
+      setMessage("Review copied. Paste it into Google Reviews and submit.");
+    } else {
+      setMessage(
+        "Google Reviews opened, but your browser blocked copying. Check clipboard permissions."
       );
     }
   };
@@ -145,70 +131,44 @@ export default function GoogleReviewButton({
       <Button
         type="button"
         variant="contained"
-        color="primary"
         fullWidth={fullWidth}
-        disabled={
-          disabled ||
-          !isConfigured ||
-          !reviewText
-        }
+        disabled={disabled || !googleUrl || !reviewText || loading}
         onClick={handleSubmit}
-        startIcon={
-          <GoogleIcon />
-        }
-        endIcon={
-          <ArrowForwardRoundedIcon />
-        }
+        startIcon={copied ? <DoneRoundedIcon /> : <GoogleIcon />}
+        endIcon={<ArrowForwardRoundedIcon />}
         sx={{
-          minHeight: {
-            xs: 50,
-            sm: 54,
-          },
-          borderRadius: 2.8,
+          minHeight: { xs: 48, sm: 52 },
+          borderRadius: 2,
           fontWeight: 800,
-          fontSize: {
-            xs: "0.9rem",
-            sm: "1rem",
-          },
-          textTransform:
-            "none",
-          boxShadow:
-            "0 8px 24px rgba(37,99,235,0.20)",
-          transition:
-            "all 0.25s ease",
+          fontSize: { xs: "0.88rem", sm: "0.96rem" },
+          textTransform: "none",
+          boxShadow: "0 7px 20px rgba(49,88,203,.18)",
           "&:hover": {
-            transform:
-              "translateY(-2px)",
-            boxShadow:
-              "0 12px 28px rgba(37,99,235,0.28)",
+            transform: "translateY(-1px)",
+            boxShadow: "0 10px 24px rgba(49,88,203,.25)",
           },
         }}
       >
-        Submit Review on Google
+        {loading
+          ? "Preparing review..."
+          : copied
+          ? "Copied — Submit on Google"
+          : "Copy & Submit Review"}
       </Button>
 
       <Snackbar
-        open={Boolean(error)}
-        autoHideDuration={4000}
-        onClose={() =>
-          setError("")
-        }
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "center",
-        }}
+        open={Boolean(message)}
+        autoHideDuration={5000}
+        onClose={() => setMessage("")}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          severity="error"
+          severity={copied ? "success" : "warning"}
           variant="filled"
-          onClose={() =>
-            setError("")
-          }
-          sx={{
-            width: "100%",
-          }}
+          onClose={() => setMessage("")}
+          sx={{ width: "100%", overflowWrap: "anywhere" }}
         >
-          {error}
+          {message}
         </Alert>
       </Snackbar>
     </>

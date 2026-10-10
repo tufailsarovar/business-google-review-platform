@@ -10,10 +10,7 @@ import {
 } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 
-import {
-  getMyBusiness,
-  updateBusiness,
-} from "../../services/businessService";
+import { getMyBusiness, updateBusiness } from "../../services/businessService";
 import BusinessLogoUpload from "./BusinessLogoUpload";
 import { getErrorMessage } from "../../utils/formatters";
 import {
@@ -39,6 +36,7 @@ const initialForm = {
 
 export default function BusinessProfileForm({ onSaved }) {
   const [form, setForm] = useState(initialForm);
+  const [logoFile, setLogoFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -49,42 +47,36 @@ export default function BusinessProfileForm({ onSaved }) {
     let mounted = true;
 
     const loadBusiness = async () => {
-      setLoading(true);
-      setError("");
-
       try {
         const response = await getMyBusiness();
-        const business = response.data?.business;
+        const business = response.data?.business || {};
 
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
 
         setForm({
-          businessName: business?.businessName || "",
-          ownerName: business?.ownerName || "",
-          email: business?.email || "",
-          mobile: business?.mobile || "",
-          category: business?.category || "",
-          description: business?.description || "",
-          address: business?.address || "",
-          website: business?.website || "",
-          logoUrl: business?.logoUrl || "",
-          googleReviewUrl: business?.googleReviewUrl || "",
+          businessName: business.businessName || business.name || "",
+          ownerName: business.ownerName || business.name || "",
+          email: business.email || "",
+          mobile: business.mobile || business.phone || "",
+          category: business.category || "",
+          description: business.description || "",
+          address: business.address || "",
+          website: business.website || "",
+          logoUrl: business.logoUrl || business.logo || "",
+          googleReviewUrl:
+            business.googleBusiness?.reviewUrl ||
+            business.googleReviewUrl ||
+            business.googleUrl ||
+            "",
         });
       } catch (err) {
         if (mounted) {
           setError(
-            getErrorMessage(
-              err,
-              "Unable to load your business profile."
-            )
+            getErrorMessage(err, "Unable to load your business profile."),
           );
         }
       } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
@@ -95,19 +87,28 @@ export default function BusinessProfileForm({ onSaved }) {
     };
   }, []);
 
-  const updateField = field => event => {
-    const value = event.target.value;
-
-    setForm(previous => ({
+  const updateField = (field) => (event) => {
+    setForm((previous) => ({
       ...previous,
-      [field]: value,
+      [field]: event.target.value,
     }));
 
-    setErrors(previous => ({
+    setErrors((previous) => ({
       ...previous,
       [field]: "",
     }));
 
+    setError("");
+    setMessage("");
+  };
+
+  const handleLogoChange = (previewUrl, file) => {
+    setForm((previous) => ({
+      ...previous,
+      logoUrl: previewUrl || "",
+    }));
+
+    setLogoFile(file || null);
     setError("");
     setMessage("");
   };
@@ -127,60 +128,26 @@ export default function BusinessProfileForm({ onSaved }) {
       nextErrors.email = "Enter a valid email address.";
     }
 
-    if (
-      form.mobile &&
-      !isValidMobile(form.mobile)
-    ) {
-      nextErrors.mobile =
-        "Enter a valid 10-digit mobile number.";
+    if (form.mobile && !isValidMobile(form.mobile)) {
+      nextErrors.mobile = "Enter a valid 10-digit mobile number.";
     }
 
-    if (
-      form.website &&
-      !isValidUrl(form.website)
-    ) {
-      nextErrors.website =
-        "Enter a valid website URL.";
+    if (form.website && !isValidUrl(form.website)) {
+      nextErrors.website = "Enter a valid website URL.";
     }
 
-    if (
-      form.googleReviewUrl &&
-      !isValidGoogleUrl(form.googleReviewUrl)
-    ) {
-      nextErrors.googleReviewUrl =
-        "Enter a valid Google review URL.";
+    if (form.googleReviewUrl && !isValidGoogleUrl(form.googleReviewUrl)) {
+      nextErrors.googleReviewUrl = "Enter a valid Google review URL.";
     }
 
     setErrors(nextErrors);
-
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleLogoChange = (previewUrl, file) => {
-    if (!file) {
-      return;
-    }
-
-    /*
-     * The current backend accepts logoUrl as a stored URL.
-     * The preview is kept locally until a real upload endpoint
-     * is configured.
-     */
-    setForm(previous => ({
-      ...previous,
-      logoUrl: previewUrl,
-    }));
-
-    setMessage("");
-    setError("");
-  };
-
-  const handleSubmit = async event => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
     setError("");
@@ -195,40 +162,72 @@ export default function BusinessProfileForm({ onSaved }) {
         description: form.description.trim(),
         address: form.address.trim(),
         website: form.website.trim(),
-        logoUrl: form.logoUrl.trim(),
         googleReviewUrl: form.googleReviewUrl.trim(),
       };
 
-      const response = await updateBusiness(payload);
-      const savedBusiness = response.data?.business;
+      let response;
 
-      if (savedBusiness) {
-        setForm(previous => ({
-          ...previous,
-          businessName: savedBusiness.businessName || "",
-          ownerName: savedBusiness.ownerName || "",
-          email: savedBusiness.email || previous.email,
-          mobile: savedBusiness.mobile || "",
-          category: savedBusiness.category || "",
-          description: savedBusiness.description || "",
-          address: savedBusiness.address || "",
-          website: savedBusiness.website || "",
-          logoUrl: savedBusiness.logoUrl || "",
-          googleReviewUrl:
-            savedBusiness.googleReviewUrl || "",
-        }));
+      if (logoFile) {
+        const formData = new FormData();
 
-        onSaved?.(savedBusiness);
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+
+        formData.append("image", logoFile);
+
+        const { default: api } = await import("../../services/api");
+
+        response = await api.put("/business/profile", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+      } else {
+        response = await updateBusiness({
+          ...payload,
+          logo: form.logoUrl.startsWith("blob:") ? undefined : form.logoUrl,
+        });
       }
 
+      const savedBusiness = response.data?.business || {};
+
+      const savedGoogleUrl =
+        savedBusiness.googleBusiness?.reviewUrl ||
+        savedBusiness.googleReviewUrl ||
+        savedBusiness.googleUrl ||
+        form.googleReviewUrl.trim();
+
+      const savedLogo =
+        savedBusiness.logoUrl || savedBusiness.logo || form.logoUrl;
+
+      const updatedBusiness = {
+        ...savedBusiness,
+        googleReviewUrl: savedGoogleUrl,
+      };
+
+      setForm((previous) => ({
+        ...previous,
+        businessName:
+          savedBusiness.businessName ||
+          savedBusiness.name ||
+          previous.businessName,
+        ownerName: savedBusiness.ownerName || previous.ownerName,
+        email: savedBusiness.email || previous.email,
+        mobile: savedBusiness.mobile || savedBusiness.phone || previous.mobile,
+        category: savedBusiness.category || previous.category,
+        description: savedBusiness.description ?? previous.description,
+        address: savedBusiness.address ?? previous.address,
+        website: savedBusiness.website ?? previous.website,
+        logoUrl: savedLogo,
+        googleReviewUrl: savedGoogleUrl,
+      }));
+
+      setLogoFile(null);
+      onSaved?.(updatedBusiness);
       setMessage("Business profile saved successfully.");
     } catch (err) {
-      setError(
-        getErrorMessage(
-          err,
-          "Unable to save your business profile."
-        )
-      );
+      setError(getErrorMessage(err, "Unable to save your business profile."));
     } finally {
       setSaving(false);
     }
@@ -245,38 +244,17 @@ export default function BusinessProfileForm({ onSaved }) {
   }
 
   return (
-    <Stack
-      component="form"
-      onSubmit={handleSubmit}
-      noValidate
-      spacing={2.5}
-    >
-      {error && (
-        <Alert severity="error">
-          {error}
-        </Alert>
-      )}
-
-      {message && (
-        <Alert severity="success">
-          {message}
-        </Alert>
-      )}
+    <Stack component="form" onSubmit={handleSubmit} noValidate spacing={2.5}>
+      {error && <Alert severity="error">{error}</Alert>}
+      {message && <Alert severity="success">{message}</Alert>}
 
       <Stack spacing={1}>
-        <Typography
-          variant="subtitle1"
-          fontWeight={800}
-        >
+        <Typography variant="subtitle1" fontWeight={800}>
           Business information
         </Typography>
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-        >
-          Keep your business information accurate so customers
-          see the correct details on your public review page.
+        <Typography variant="body2" color="text.secondary">
+          Keep your business information accurate so customers see the correct
+          details on your public review page.
         </Typography>
       </Stack>
 
@@ -285,6 +263,7 @@ export default function BusinessProfileForm({ onSaved }) {
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             required
             label="Business name"
             value={form.businessName}
@@ -297,6 +276,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             required
             label="Owner name"
             value={form.ownerName}
@@ -309,6 +289,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             required
             label="Email"
             type="email"
@@ -320,6 +301,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             label="Mobile number"
             type="tel"
             value={form.mobile}
@@ -336,6 +318,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             label="Business category"
             placeholder="Restaurant, Salon, Store..."
             value={form.category}
@@ -346,6 +329,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12 }}>
           <TextField
+            fullWidth
             label="Business description"
             multiline
             minRows={4}
@@ -357,6 +341,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12 }}>
           <TextField
+            fullWidth
             label="Business address"
             multiline
             minRows={3}
@@ -368,6 +353,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             label="Website"
             placeholder="https://example.com"
             value={form.website}
@@ -380,6 +366,7 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
+            fullWidth
             label="Google review URL"
             placeholder="https://www.google.com/..."
             value={form.googleReviewUrl}
@@ -392,16 +379,14 @@ export default function BusinessProfileForm({ onSaved }) {
 
         <Grid size={{ xs: 12 }}>
           <Stack spacing={1}>
-            <Typography
-              variant="subtitle2"
-              fontWeight={800}
-            >
+            <Typography variant="subtitle2" fontWeight={800}>
               Business logo
             </Typography>
 
             <BusinessLogoUpload
               value={form.logoUrl}
               onChange={handleLogoChange}
+              disabled={saving}
             />
           </Stack>
         </Grid>

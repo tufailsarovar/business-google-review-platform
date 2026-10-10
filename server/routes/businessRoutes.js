@@ -1,3 +1,4 @@
+
 import express from "express";
 
 import {
@@ -8,59 +9,38 @@ import {
   getBusinessAnalytics,
   regenerateBusinessId,
   updateBusinessStatus,
+  getBusinessSettings,
+updateBusinessSettings,
 } from "../controllers/businessController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
+import { uploadSingleImage } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
+// Public route
+router.get("/public/:businessId", getPublicBusiness);
 
-router.get(
-  "/public/:businessId",
-  getPublicBusiness
-);
-
-/*
-|--------------------------------------------------------------------------
-| Protected Business Routes
-|--------------------------------------------------------------------------
-*/
-
+// Protected business routes
 router.use(authMiddleware);
 
-router.get(
-  "/profile",
-  getBusinessProfile
-);
+router.get("/profile", getBusinessProfile);
+router.get("/settings", getBusinessSettings);
+router.put("/settings", updateBusinessSettings);
 
 router.put(
   "/profile",
+  uploadSingleImage,
   updateBusinessProfile
 );
 
-router.put(
-  "/public-page",
-  updatePublicPage
-);
+router.put("/public-page", updatePublicPage);
 
-router.get(
-  "/analytics",
-  getBusinessAnalytics
-);
+router.get("/analytics", getBusinessAnalytics);
 
-router.post(
-  "/regenerate-id",
-  regenerateBusinessId
-);
+router.post("/regenerate-id", regenerateBusinessId);
 
-router.patch(
-  "/status",
-  updateBusinessStatus
-);
+router.patch("/status", updateBusinessStatus);
+
 
 export default router;

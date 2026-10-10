@@ -19,7 +19,7 @@ import adminService from "../../services/adminService";
 
 export default function Settings() {
   const [settings, setSettings] = useState({
-    siteName: "TapReview",
+    platformName: "TapReview",
     supportEmail: "",
     maintenanceMode: false,
     allowBusinessRegistration: true,
@@ -41,24 +41,23 @@ export default function Settings() {
         text: "",
       });
 
-      const response =
-        await adminService.getSettings();
+      const response = await adminService.getSettings();
 
-      const data =
-        response?.data?.settings ||
-        response?.data ||
-        {};
+      const data = response?.data?.settings || response?.data || {};
 
-      setSettings(prev => ({
-        ...prev,
-        ...data,
-      }));
+      setSettings({
+        platformName: data.platformName ?? data.siteName ?? "TapReview",
+        supportEmail: data.supportEmail ?? "",
+        maintenanceMode: Boolean(data.maintenanceMode),
+        allowRegistration:
+          data.allowRegistration ?? data.allowBusinessRegistration ?? true,
+        allowReviewGeneration: data.allowReviewGeneration ?? true,
+      });
     } catch (error) {
       setMessage({
         type: "error",
         text:
-          error?.response?.data?.message ||
-          "Unable to load admin settings.",
+          error?.response?.data?.message || "Unable to load admin settings.",
       });
     } finally {
       setLoading(false);
@@ -69,17 +68,16 @@ export default function Settings() {
     loadSettings();
   }, []);
 
-  const handleChange = event => {
-    const { name, value, checked, type } =
-      event.target;
+  const handleChange = (event) => {
+    const { name, value, checked, type } = event.target;
 
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleSave = async event => {
+  const handleSave = async (event) => {
     event.preventDefault();
 
     try {
@@ -89,7 +87,19 @@ export default function Settings() {
         text: "",
       });
 
-      await adminService.updateSettings(settings);
+      const response = await adminService.updateSettings(settings);
+      const saved = response?.data?.settings;
+
+      if (saved) {
+        setSettings((prev) => ({
+          ...prev,
+          ...saved,
+          platformName: saved.platformName ?? prev.platformName,
+          allowRegistration: saved.allowRegistration ?? prev.allowRegistration,
+          allowReviewGeneration:
+            saved.allowReviewGeneration ?? prev.allowReviewGeneration,
+        }));
+      }
 
       setMessage({
         type: "success",
@@ -98,9 +108,7 @@ export default function Settings() {
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error?.response?.data?.message ||
-          "Unable to update settings.",
+        text: error?.response?.data?.message || "Unable to update settings.",
       });
     } finally {
       setSaving(false);
@@ -136,11 +144,7 @@ export default function Settings() {
           >
             <SettingsRoundedIcon color="primary" />
 
-            <Typography
-              color="primary"
-              fontWeight={800}
-              fontSize={14}
-            >
+            <Typography color="primary" fontWeight={800} fontSize={14}>
               ADMIN CONFIGURATION
             </Typography>
           </Box>
@@ -165,8 +169,7 @@ export default function Settings() {
               lineHeight: 1.7,
             }}
           >
-            Manage global settings and platform
-            controls.
+            Manage global settings and platform controls.
           </Typography>
         </Box>
 
@@ -196,10 +199,7 @@ export default function Settings() {
         </Alert>
       )}
 
-      <Box
-        component="form"
-        onSubmit={handleSave}
-      >
+      <Box component="form" onSubmit={handleSave}>
         <Grid container spacing={3}>
           <Grid
             size={{
@@ -223,10 +223,7 @@ export default function Settings() {
                   },
                 }}
               >
-                <Typography
-                  variant="h6"
-                  fontWeight={800}
-                >
+                <Typography variant="h6" fontWeight={800}>
                   General Settings
                 </Typography>
 
@@ -238,8 +235,7 @@ export default function Settings() {
                     mb: 3,
                   }}
                 >
-                  Basic information used across the
-                  TapReview platform.
+                  Basic information used across the TapReview platform.
                 </Typography>
 
                 <Divider sx={{ mb: 3 }} />
@@ -253,8 +249,8 @@ export default function Settings() {
                 >
                   <TextField
                     label="Site Name"
-                    name="siteName"
-                    value={settings.siteName}
+                    name="platformName"
+                    value={settings.platformName}
                     onChange={handleChange}
                     fullWidth
                     disabled={loading || saving}
@@ -296,10 +292,7 @@ export default function Settings() {
                   },
                 }}
               >
-                <Typography
-                  variant="h6"
-                  fontWeight={800}
-                >
+                <Typography variant="h6" fontWeight={800}>
                   Platform Controls
                 </Typography>
 
@@ -312,8 +305,7 @@ export default function Settings() {
                     lineHeight: 1.6,
                   }}
                 >
-                  Enable or disable major platform
-                  features.
+                  Enable or disable major platform features.
                 </Typography>
 
                 <Divider sx={{ mb: 2 }} />
@@ -322,27 +314,17 @@ export default function Settings() {
                   control={
                     <Switch
                       name="maintenanceMode"
-                      checked={
-                        Boolean(
-                          settings.maintenanceMode
-                        )
-                      }
+                      checked={Boolean(settings.maintenanceMode)}
                       onChange={handleChange}
                       disabled={loading || saving}
                     />
                   }
                   label={
                     <Box>
-                      <Typography fontWeight={700}>
-                        Maintenance Mode
-                      </Typography>
+                      <Typography fontWeight={700}>Maintenance Mode</Typography>
 
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                      >
-                        Temporarily restrict normal
-                        platform access.
+                      <Typography variant="caption" color="text.secondary">
+                        Temporarily restrict normal platform access.
                       </Typography>
                     </Box>
                   }
@@ -360,12 +342,8 @@ export default function Settings() {
                 <FormControlLabel
                   control={
                     <Switch
-                      name="allowBusinessRegistration"
-                      checked={
-                        Boolean(
-                          settings.allowBusinessRegistration
-                        )
-                      }
+                      name="allowRegistration"
+                      checked={Boolean(settings.allowRegistration)}
                       onChange={handleChange}
                       disabled={loading || saving}
                     />
@@ -376,12 +354,8 @@ export default function Settings() {
                         Business Registration
                       </Typography>
 
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                      >
-                        Allow new businesses to create
-                        accounts.
+                      <Typography variant="caption" color="text.secondary">
+                        Allow new businesses to create accounts.
                       </Typography>
                     </Box>
                   }
@@ -400,11 +374,7 @@ export default function Settings() {
                   control={
                     <Switch
                       name="allowReviewGeneration"
-                      checked={
-                        Boolean(
-                          settings.allowReviewGeneration
-                        )
-                      }
+                      checked={Boolean(settings.allowReviewGeneration)}
                       onChange={handleChange}
                       disabled={loading || saving}
                     />
@@ -415,12 +385,8 @@ export default function Settings() {
                         Review Generation
                       </Typography>
 
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                      >
-                        Allow AI-assisted review
-                        suggestions.
+                      <Typography variant="caption" color="text.secondary">
+                        Allow AI-assisted review suggestions.
                       </Typography>
                     </Box>
                   }

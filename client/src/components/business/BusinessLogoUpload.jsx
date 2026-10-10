@@ -1,116 +1,149 @@
-import { useRef, useState } from "react";
-import {
-  Avatar,
-  Box,
-  Button,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Avatar, Box, Button, Stack, Typography } from "@mui/material";
 import CloudUploadRoundedIcon from "@mui/icons-material/CloudUploadRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function BusinessLogoUpload({
   value = "",
   onChange,
+  disabled = false,
 }) {
   const inputRef = useRef(null);
+  const previewRef = useRef("");
   const [preview, setPreview] = useState(value || "");
+  const [error, setError] = useState("");
 
-  const handleFileChange = event => {
+  useEffect(() => {
+    setPreview(value || "");
+  }, [value]);
+
+  useEffect(() => {
+    return () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+      }
+    };
+  }, []);
+
+  const handleFileChange = (event) => {
     const file = event.target.files?.[0];
 
-    if (!file) {
+    if (!file) return;
+
+    setError("");
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError("Choose a JPG, PNG, or WEBP image.");
+      event.target.value = "";
       return;
     }
 
-    if (!file.type.startsWith("image/")) {
+    if (file.size > MAX_FILE_SIZE) {
+      setError("Logo size must be 5 MB or less.");
+      event.target.value = "";
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return;
+    if (previewRef.current) {
+      URL.revokeObjectURL(previewRef.current);
     }
 
-    const objectUrl = URL.createObjectURL(file);
+    const previewUrl = URL.createObjectURL(file);
 
-    setPreview(objectUrl);
-    onChange?.(objectUrl, file);
+    previewRef.current = previewUrl;
+    setPreview(previewUrl);
+
+    // Pass the preview and original file to the parent.
+    onChange?.(previewUrl, file);
   };
 
   const handleRemove = () => {
-    if (preview && preview.startsWith("blob:")) {
-      URL.revokeObjectURL(preview);
+    if (previewRef.current) {
+      URL.revokeObjectURL(previewRef.current);
+      previewRef.current = "";
     }
 
     setPreview("");
-    onChange?.("", null);
+    setError("");
 
     if (inputRef.current) {
       inputRef.current.value = "";
     }
+
+    onChange?.("", null);
   };
 
   return (
-    <Stack
-      direction={{ xs: "column", sm: "row" }}
-      spacing={2}
-      alignItems={{ xs: "flex-start", sm: "center" }}
-    >
-      <Avatar
-        src={preview || value}
-        alt="Business logo"
+    <Stack spacing={2} alignItems="flex-start">
+      {error && <Alert severity="error">{error}</Alert>}
+
+      <Box
         sx={{
-          width: 76,
-          height: 76,
-          border: "1px solid",
-          borderColor: "divider",
-          bgcolor: "grey.100",
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          width: "100%",
+          flexWrap: "wrap",
         }}
-      />
-
-      <Box>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-        >
-          <Button
-            variant="outlined"
-            component="label"
-            startIcon={<CloudUploadRoundedIcon />}
-          >
-            Choose logo
-
-            <input
-              ref={inputRef}
-              hidden
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={handleFileChange}
-            />
-          </Button>
-
-          {(preview || value) && (
-            <Button
-              color="error"
-              variant="text"
-              startIcon={<DeleteOutlineRoundedIcon />}
-              onClick={handleRemove}
-            >
-              Remove
-            </Button>
-          )}
-        </Stack>
-
-        <Typography
-          variant="caption"
-          color="text.secondary"
+      >
+        <Avatar
+          src={preview || undefined}
+          alt="Business logo preview"
+          variant="rounded"
+          imgProps={{
+            onError: () => setPreview(""),
+          }}
           sx={{
-            display: "block",
-            mt: 1,
+            width: 100,
+            height: 100,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+            color: "text.secondary",
+            borderRadius: 3,
           }}
         >
-          PNG, JPG, WEBP or GIF. Maximum size: 5 MB.
-        </Typography>
+          <CloudUploadRoundedIcon fontSize="large" />
+        </Avatar>
+
+        <Stack spacing={1}>
+          <Typography variant="body2" color="text.secondary">
+            Upload your business logo. JPG, PNG, or WEBP, up to 5 MB.
+          </Typography>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<CloudUploadRoundedIcon />}
+              disabled={disabled}
+            >
+              Choose logo
+              <input
+                ref={inputRef}
+                hidden
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+              />
+            </Button>
+
+            {preview && (
+              <Button
+                color="error"
+                startIcon={<DeleteOutlineRoundedIcon />}
+                onClick={handleRemove}
+                disabled={disabled}
+              >
+                Remove
+              </Button>
+            )}
+          </Stack>
+        </Stack>
       </Box>
     </Stack>
   );

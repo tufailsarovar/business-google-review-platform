@@ -1,10 +1,13 @@
 import Business from "../models/Business.js";
 import GoogleBusiness from "../models/GoogleBusiness.js";
 import generateBusinessId from "../utils/generateBusinessId.js";
+import cloudinary from "../config/cloudinary.js";
+import { Readable } from "stream";
 
-const getUserId = req => req.user?.id || req.user?._id;
+const getUserId = (req) => req.user?.id || req.user?._id;
 
-const getBusiness = async userId => Business.findById(userId);
+const getBusiness = async (userId) => Business.findById(userId);
+
 
 export const getBusinessProfile = async (req, res, next) => {
   try {
@@ -17,14 +20,44 @@ export const getBusinessProfile = async (req, res, next) => {
       });
     }
 
+    const googleBusiness = await GoogleBusiness.findOne({
+      business: business._id,
+    });
+
     return res.status(200).json({
       success: true,
-      business,
+      business: {
+        ...business.toObject(),
+        googleReviewUrl:
+          googleBusiness?.reviewUrl ||
+          business.googleReviewUrl ||
+          business.googleUrl ||
+          "",
+      },
+      googleBusiness,
     });
   } catch (error) {
     next(error);
   }
 };
+
+
+const uploadBusinessLogo = (file) =>
+  new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: "taprating/business-logos",
+        resource_type: "image",
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      },
+    );
+
+    Readable.from(file.buffer).pipe(stream);
+  });
+
 
 export const updateBusinessProfile = async (req, res, next) => {
   try {
@@ -37,10 +70,8 @@ export const updateBusinessProfile = async (req, res, next) => {
       });
     }
 
-    const allowedFields = [
-      "name",
+    const fields = [
       "businessName",
-      "phone",
       "category",
       "description",
       "address",
@@ -48,16 +79,38 @@ export const updateBusinessProfile = async (req, res, next) => {
       "state",
       "country",
       "website",
-      "logo",
+      "googleReviewUrl",
       "publicPageTitle",
       "publicPageDescription",
     ];
 
-    allowedFields.forEach(field => {
+    fields.forEach((field) => {
       if (req.body[field] !== undefined) {
         business[field] = req.body[field];
       }
     });
+
+    if (req.body.ownerName !== undefined) {
+      business.name = req.body.ownerName;
+    } else if (req.body.name !== undefined) {
+      business.name = req.body.name;
+    }
+
+    if (req.body.mobile !== undefined) {
+      business.phone = req.body.mobile;
+    } else if (req.body.phone !== undefined) {
+      business.phone = req.body.phone;
+    }
+
+    if (req.file) {
+      business.logo = await uploadBusinessLogo(req.file);
+    } else {
+      const suppliedLogo = req.body.logo || req.body.logoUrl;
+
+      if (suppliedLogo && !suppliedLogo.startsWith("blob:")) {
+        business.logo = suppliedLogo;
+      }
+    }
 
     await business.save();
 
@@ -70,6 +123,7 @@ export const updateBusinessProfile = async (req, res, next) => {
     next(error);
   }
 };
+
 
 export const getPublicBusiness = async (req, res, next) => {
   try {
@@ -86,7 +140,7 @@ export const getPublicBusiness = async (req, res, next) => {
       businessId,
       isActive: true,
     }).select(
-      "businessId businessName name category description address city state country website logo publicPageTitle publicPageDescription"
+      "businessId businessName name category description address city state country website logo publicPageTitle publicPageDescription",
     );
 
     if (!business) {
@@ -122,18 +176,14 @@ export const updatePublicPage = async (req, res, next) => {
       });
     }
 
-    const {
-      publicPageTitle,
-      publicPageDescription,
-    } = req.body;
+    const { publicPageTitle, publicPageDescription } = req.body;
 
     if (publicPageTitle !== undefined) {
       business.publicPageTitle = String(publicPageTitle).trim();
     }
 
     if (publicPageDescription !== undefined) {
-      business.publicPageDescription =
-        String(publicPageDescription).trim();
+      business.publicPageDescription = String(publicPageDescription).trim();
     }
 
     await business.save();
@@ -205,6 +255,28 @@ export const regenerateBusinessId = async (req, res, next) => {
 
     business.businessId = businessId;
 
+    // Accept the actual uploaded logo file.
+    if (req.file) {
+      business.logo = await uploadBusinessLogo(req.file);
+    }
+
+    // Keep frontend field names compatible with the database.
+    if (req.body.businessName !== undefined) {
+      business.businessName = req.body.businessName;
+    }
+
+    if (req.body.ownerName !== undefined) {
+      business.name = req.body.ownerName;
+    }
+
+    if (req.body.mobile !== undefined) {
+      business.phone = req.body.mobile;
+    }
+
+    if (req.body.logoUrl && !req.body.logoUrl.startsWith("blob:")) {
+      business.logo = req.body.logoUrl;
+    }
+
     await business.save();
 
     return res.status(200).json({
@@ -245,6 +317,76 @@ export const updateBusinessStatus = async (req, res, next) => {
         ? "Business activated successfully."
         : "Business deactivated successfully.",
       business,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getBusinessSettings = async (req, res, next) => {
+  try {
+    const business = await getBusiness(getUserId(req));
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      settings: {
+        publicPageEnabled: business.publicPageEnabled,
+        aiSuggestionsEnabled: business.aiSuggestionsEnabled,
+        notificationsEnabled: business.notificationsEnabled,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateBusinessSettings = async (req, res, next) => {
+  try {
+    const business = await getBusiness(getUserId(req));
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        message: "Business not found.",
+      });
+    }
+
+    const fields = [
+      "publicPageEnabled",
+      "aiSuggestionsEnabled",
+      "notificationsEnabled",
+    ];
+
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        if (typeof req.body[field] !== "boolean") {
+          return res.status(400).json({
+            success: false,
+            message: `${field} must be a boolean.`,
+          });
+        }
+
+        business[field] = req.body[field];
+      }
+    }
+
+    await business.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Business settings saved successfully.",
+      settings: {
+        publicPageEnabled: business.publicPageEnabled,
+        aiSuggestionsEnabled: business.aiSuggestionsEnabled,
+        notificationsEnabled: business.notificationsEnabled,
+      },
     });
   } catch (error) {
     next(error);

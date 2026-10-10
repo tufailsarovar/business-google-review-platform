@@ -95,6 +95,12 @@ const businessSchema = new mongoose.Schema(
       default: "",
     },
 
+    googleReviewUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     logo: {
       type: String,
       trim: true,
@@ -111,6 +117,19 @@ const businessSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+
+    publicPageEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    aiSuggestionsEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    notificationsEnabled: {
+      type: Boolean,
+      default: true,
     },
 
     /*
@@ -140,11 +159,7 @@ const businessSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: [
-        "active",
-        "inactive",
-        "suspended",
-      ],
+      enum: ["active", "inactive", "suspended"],
       default: "inactive",
       index: true,
     },
@@ -202,7 +217,7 @@ const businessSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 businessSchema.index({
@@ -217,7 +232,6 @@ businessSchema.index({
 });
 
 const Business =
-  mongoose.models.Business ||
-  mongoose.model("Business", businessSchema);
+  mongoose.models.Business || mongoose.model("Business", businessSchema);
 
 export default Business;

@@ -55,6 +55,11 @@ const platformSettingsSchema = new mongoose.Schema(
       default: true,
     },
 
+    allowReviewGeneration: {
+      type: Boolean,
+      default: true,
+    },
+
     requireEmailVerification: {
       type: Boolean,
       default: true,
@@ -117,7 +122,7 @@ const platformSettingsSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const PlatformSettings =

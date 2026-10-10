@@ -1,18 +1,14 @@
 import Business from "../models/Business.js";
 import ReviewTemplate from "../models/ReviewTemplate.js";
 
-import {
-  generateReviewSuggestion,
-} from "../services/openaiService.js";
+import { generateReviewSuggestion } from "../services/openaiService.js";
 
-import {
-  generateGeminiReviewSuggestion,
-} from "../services/geminiService.js";
+import { generateGeminiReviewSuggestion } from "../services/geminiService.js";
+import PlatformSettings from "../models/PlatformSettings.js";
 
-const getUserId = req =>
-  req.user?.id || req.user?._id;
+const getUserId = (req) => req.user?.id || req.user?._id;
 
-const normalizeRating = value => {
+const normalizeRating = (value) => {
   const rating = Number(value);
 
   if (!Number.isInteger(rating)) {
@@ -26,7 +22,7 @@ const normalizeRating = value => {
   return rating;
 };
 
-const getBusinessByPublicId = async businessId =>
+const getBusinessByPublicId = async (businessId) =>
   Business.findOne({
     businessId,
     isActive: true,
@@ -36,21 +32,11 @@ const getBusinessByPublicId = async businessId =>
    GENERATE REVIEW
    ========================================================= */
 
-export const generateReview = async (
-  req,
-  res,
-  next
-) => {
+export const generateReview = async (req, res, next) => {
   try {
-    const {
-      businessId,
-      rating,
-      keywords = [],
-      customerName = "",
-    } = req.body;
+    const { businessId, rating, keywords = [], customerName = "" } = req.body;
 
-    const normalizedRating =
-      normalizeRating(rating);
+    const normalizedRating = normalizeRating(rating);
 
     if (!businessId) {
       return res.status(400).json({
@@ -62,63 +48,62 @@ export const generateReview = async (
     if (!normalizedRating) {
       return res.status(400).json({
         success: false,
-        message:
-          "Rating must be between 1 and 5.",
+        message: "Rating must be between 1 and 5.",
       });
     }
 
-    const business =
-      await getBusinessByPublicId(
-        businessId
-      );
+    const business = await getBusinessByPublicId(businessId);
 
     if (!business) {
       return res.status(404).json({
         success: false,
-        message:
-          "Business not found or inactive.",
+        message: "Business not found or inactive.",
       });
     }
 
+    if (business.aiSuggestionsEnabled === false) {
+      return res.status(403).json({
+        success: false,
+        message: "AI review suggestions are disabled for this business.",
+      });
+    }
+
+    const platformSettings = await PlatformSettings.findOne();
+
+    if (platformSettings?.allowReviewGeneration === false) {
+      return res.status(403).json({
+        success: false,
+        message: "AI review generation is currently disabled.",
+      });
+    }
     /*
      * Find an active admin-created template
      * matching the customer's rating.
      */
-    const reviewTemplate =
-      await ReviewTemplate.findOne({
-        rating: normalizedRating,
-        isActive: true,
+    const reviewTemplate = await ReviewTemplate.findOne({
+      rating: normalizedRating,
+      isActive: true,
+    })
+      .sort({
+        createdAt: -1,
       })
-        .sort({
-          createdAt: -1,
-        })
-        .lean();
+      .lean();
 
-    const review =
-      await generateReviewSuggestion({
-        businessName:
-          business.businessName ||
-          business.name,
+    const review = await generateReviewSuggestion({
+      businessName: business.businessName || business.name,
 
-        category:
-          business.category || "",
+      category: business.category || "",
 
-        description:
-          business.description || "",
+      description: business.description || "",
 
-        rating: normalizedRating,
+      rating: normalizedRating,
 
-        keywords:
-          Array.isArray(keywords)
-            ? keywords
-            : [],
+      keywords: Array.isArray(keywords) ? keywords : [],
 
-        customerName:
-          String(customerName).trim(),
+      customerName: String(customerName).trim(),
 
-        reviewTemplate:
-          reviewTemplate?.template || "",
-      });
+      reviewTemplate: reviewTemplate?.template || "",
+    });
 
     return res.status(200).json({
       success: true,
@@ -128,18 +113,15 @@ export const generateReview = async (
        * Useful for the frontend to know whether
        * an admin template was used.
        */
-      templateUsed: Boolean(
-        reviewTemplate
-      ),
+      templateUsed: Boolean(reviewTemplate),
 
-      template:
-        reviewTemplate
-          ? {
-              id: reviewTemplate._id,
-              title: reviewTemplate.title,
-              rating: reviewTemplate.rating,
-            }
-          : null,
+      template: reviewTemplate
+        ? {
+            id: reviewTemplate._id,
+            title: reviewTemplate.title,
+            rating: reviewTemplate.rating,
+          }
+        : null,
     });
   } catch (error) {
     next(error);
@@ -150,21 +132,11 @@ export const generateReview = async (
    GENERATE REVIEW WITH GEMINI
    ========================================================= */
 
-export const generateGeminiReview = async (
-  req,
-  res,
-  next
-) => {
+export const generateGeminiReview = async (req, res, next) => {
   try {
-    const {
-      businessId,
-      rating,
-      keywords = [],
-      customerName = "",
-    } = req.body;
+    const { businessId, rating, keywords = [], customerName = "" } = req.body;
 
-    const normalizedRating =
-      normalizeRating(rating);
+    const normalizedRating = normalizeRating(rating);
 
     if (!businessId) {
       return res.status(400).json({
@@ -176,59 +148,43 @@ export const generateGeminiReview = async (
     if (!normalizedRating) {
       return res.status(400).json({
         success: false,
-        message:
-          "Rating must be between 1 and 5.",
+        message: "Rating must be between 1 and 5.",
       });
     }
 
-    const business =
-      await getBusinessByPublicId(
-        businessId
-      );
+    const business = await getBusinessByPublicId(businessId);
 
     if (!business) {
       return res.status(404).json({
         success: false,
-        message:
-          "Business not found or inactive.",
+        message: "Business not found or inactive.",
       });
     }
 
-    const reviewTemplate =
-      await ReviewTemplate.findOne({
-        rating: normalizedRating,
-        isActive: true,
+    const reviewTemplate = await ReviewTemplate.findOne({
+      rating: normalizedRating,
+      isActive: true,
+    })
+      .sort({
+        createdAt: -1,
       })
-        .sort({
-          createdAt: -1,
-        })
-        .lean();
+      .lean();
 
-    const review =
-      await generateGeminiReviewSuggestion({
-        businessName:
-          business.businessName ||
-          business.name,
+    const review = await generateGeminiReviewSuggestion({
+      businessName: business.businessName || business.name,
 
-        category:
-          business.category || "",
+      category: business.category || "",
 
-        description:
-          business.description || "",
+      description: business.description || "",
 
-        rating: normalizedRating,
+      rating: normalizedRating,
 
-        keywords:
-          Array.isArray(keywords)
-            ? keywords
-            : [],
+      keywords: Array.isArray(keywords) ? keywords : [],
 
-        customerName:
-          String(customerName).trim(),
+      customerName: String(customerName).trim(),
 
-        reviewTemplate:
-          reviewTemplate?.template || "",
-      });
+      reviewTemplate: reviewTemplate?.template || "",
+    });
 
     return res.status(200).json({
       success: true,
@@ -236,17 +192,15 @@ export const generateGeminiReview = async (
 
       provider: "gemini",
 
-      templateUsed:
-        Boolean(reviewTemplate),
+      templateUsed: Boolean(reviewTemplate),
 
-      template:
-        reviewTemplate
-          ? {
-              id: reviewTemplate._id,
-              title: reviewTemplate.title,
-              rating: reviewTemplate.rating,
-            }
-          : null,
+      template: reviewTemplate
+        ? {
+            id: reviewTemplate._id,
+            title: reviewTemplate.title,
+            rating: reviewTemplate.rating,
+          }
+        : null,
     });
   } catch (error) {
     next(error);
@@ -256,16 +210,9 @@ export const generateGeminiReview = async (
    GET REVIEW STATS
    ========================================================= */
 
-export const getReviewStats = async (
-  req,
-  res,
-  next
-) => {
+export const getReviewStats = async (req, res, next) => {
   try {
-    const business =
-      await Business.findById(
-        getUserId(req)
-      );
+    const business = await Business.findById(getUserId(req));
 
     if (!business) {
       return res.status(404).json({
@@ -274,42 +221,27 @@ export const getReviewStats = async (
       });
     }
 
-    const stats =
-      business.reviewStats || {};
+    const stats = business.reviewStats || {};
 
     return res.status(200).json({
       success: true,
 
       stats: {
-        totalVisitors:
-          Number(
-            stats.totalVisitors
-          ) || 0,
+        totalVisitors: Number(stats.totalVisitors) || 0,
 
-        totalRatings:
-          Number(
-            stats.totalRatings
-          ) || 0,
+        totalRatings: Number(stats.totalRatings) || 0,
 
-        oneStar:
-          Number(stats.oneStar) || 0,
+        oneStar: Number(stats.oneStar) || 0,
 
-        twoStars:
-          Number(stats.twoStars) || 0,
+        twoStars: Number(stats.twoStars) || 0,
 
-        threeStars:
-          Number(stats.threeStars) || 0,
+        threeStars: Number(stats.threeStars) || 0,
 
-        fourStars:
-          Number(stats.fourStars) || 0,
+        fourStars: Number(stats.fourStars) || 0,
 
-        fiveStars:
-          Number(stats.fiveStars) || 0,
+        fiveStars: Number(stats.fiveStars) || 0,
 
-        averageRating:
-          Number(
-            stats.averageRating
-          ) || 0,
+        averageRating: Number(stats.averageRating) || 0,
       },
     });
   } catch (error) {
@@ -321,33 +253,23 @@ export const getReviewStats = async (
    RECORD RATING
    ========================================================= */
 
-export const recordRating = async (
-  req,
-  res,
-  next
-) => {
+export const recordRating = async (req, res, next) => {
   try {
-    const {
-      businessId,
-      rating,
-    } = req.body;
+    const { businessId, rating } = req.body;
 
-    const normalizedRating =
-      normalizeRating(rating);
+    const normalizedRating = normalizeRating(rating);
 
     if (!businessId) {
       return res.status(400).json({
         success: false,
-        message:
-          "Business ID is required.",
+        message: "Business ID is required.",
       });
     }
 
     if (!normalizedRating) {
       return res.status(400).json({
         success: false,
-        message:
-          "Rating must be between 1 and 5.",
+        message: "Rating must be between 1 and 5.",
       });
     }
 
@@ -370,60 +292,46 @@ export const recordRating = async (
       5: "reviewStats.fiveStars",
     };
 
-    const ratingField =
-      ratingFieldMap[
-        normalizedRating
-      ];
+    const ratingField = ratingFieldMap[normalizedRating];
 
-    const business =
-      await Business.findOneAndUpdate(
-        {
-          businessId,
-          isActive: true,
+    const business = await Business.findOneAndUpdate(
+      {
+        businessId,
+        isActive: true,
+      },
+
+      {
+        $inc: {
+          "reviewStats.totalRatings": 1,
+          [ratingField]: 1,
         },
+      },
 
-        {
-          $inc: {
-            "reviewStats.totalRatings": 1,
-            [ratingField]: 1,
-          },
-        },
-
-        {
-          new: true,
-        }
-      );
+      {
+        new: true,
+      },
+    );
 
     if (!business) {
       return res.status(404).json({
         success: false,
-        message:
-          "Business not found or inactive.",
+        message: "Business not found or inactive.",
       });
     }
 
-    const stats =
-      business.reviewStats || {};
+    const stats = business.reviewStats || {};
 
-    const totalRatings =
-      Number(
-        stats.totalRatings
-      ) || 0;
+    const totalRatings = Number(stats.totalRatings) || 0;
 
-    const oneStar =
-      Number(stats.oneStar) || 0;
+    const oneStar = Number(stats.oneStar) || 0;
 
-    const twoStars =
-      Number(stats.twoStars) || 0;
+    const twoStars = Number(stats.twoStars) || 0;
 
-    const threeStars =
-      Number(stats.threeStars) || 0;
+    const threeStars = Number(stats.threeStars) || 0;
 
-    const fourStars =
-      Number(stats.fourStars) || 0;
+    const fourStars = Number(stats.fourStars) || 0;
 
-    const fiveStars =
-      Number(stats.fiveStars) || 0;
+    const fiveStars = Number(stats.fiveStars) || 0;
 
     const weightedTotal =
       oneStar * 1 +
@@ -433,14 +341,7 @@ export const recordRating = async (
       fiveStars * 5;
 
     business.reviewStats.averageRating =
-      totalRatings > 0
-        ? Number(
-            (
-              weightedTotal /
-              totalRatings
-            ).toFixed(2)
-          )
-        : 0;
+      totalRatings > 0 ? Number((weightedTotal / totalRatings).toFixed(2)) : 0;
 
     await business.save();
 
@@ -454,9 +355,7 @@ export const recordRating = async (
         threeStars,
         fourStars,
         fiveStars,
-        averageRating:
-          business.reviewStats
-            .averageRating,
+        averageRating: business.reviewStats.averageRating,
       },
     });
   } catch (error) {
@@ -468,47 +367,38 @@ export const recordRating = async (
    RECORD VISITOR
    ========================================================= */
 
-export const recordVisitor = async (
-  req,
-  res,
-  next
-) => {
+export const recordVisitor = async (req, res, next) => {
   try {
-    const {
-      businessId,
-    } = req.body;
+    const { businessId } = req.body;
 
     if (!businessId) {
       return res.status(400).json({
         success: false,
-        message:
-          "Business ID is required.",
+        message: "Business ID is required.",
       });
     }
 
-    const business =
-      await Business.findOneAndUpdate(
-        {
-          businessId,
-          isActive: true,
-        },
+    const business = await Business.findOneAndUpdate(
+      {
+        businessId,
+        isActive: true,
+      },
 
-        {
-          $inc: {
-            "reviewStats.totalVisitors": 1,
-          },
+      {
+        $inc: {
+          "reviewStats.totalVisitors": 1,
         },
+      },
 
-        {
-          new: true,
-        }
-      );
+      {
+        new: true,
+      },
+    );
 
     if (!business) {
       return res.status(404).json({
         success: false,
-        message:
-          "Business not found or inactive.",
+        message: "Business not found or inactive.",
       });
     }
 

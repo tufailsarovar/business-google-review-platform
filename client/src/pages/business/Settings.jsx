@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import {
   Alert,
   Box,
@@ -10,46 +11,129 @@ import {
   Switch,
   Typography,
 } from "@mui/material";
+
 import { motion } from "framer-motion";
+
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 
 import { useBusiness } from "../../hooks/useBusiness";
+import {
+  getBusinessSettings,
+  updateBusinessSettings,
+} from "../../services/businessService";
 
 const MotionBox = motion(Box);
 
-export default function Settings() {
-  const { business, loading } = useBusiness();
+const defaultSettings = {
+  publicPageEnabled: true,
+  aiSuggestionsEnabled: true,
+  notificationsEnabled: true,
+};
 
-  const [settings, setSettings] = useState({
-    publicPageEnabled:
-      business?.publicPageEnabled !== false,
-    aiSuggestionsEnabled:
-      business?.aiSuggestionsEnabled !== false,
-    notificationsEnabled:
-      business?.notificationsEnabled !== false,
+export default function Settings() {
+  const { business, loading: businessLoading } = useBusiness();
+
+  const [settings, setSettings] = useState(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({
+    type: "",
+    text: "",
   });
 
-  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    let active = true;
 
-  const handleToggle = key => {
-    setSettings(prev => ({
+    const loadSettings = async () => {
+      try {
+        setLoading(true);
+
+        const response = await getBusinessSettings();
+        const data = response?.data?.settings;
+
+        if (active && data) {
+          setSettings({
+            publicPageEnabled: data.publicPageEnabled ?? true,
+            aiSuggestionsEnabled: data.aiSuggestionsEnabled ?? true,
+            notificationsEnabled: data.notificationsEnabled ?? true,
+          });
+        }
+      } catch (error) {
+        if (active) {
+          setMessage({
+            type: "error",
+            text:
+              error?.response?.data?.message ||
+              "Unable to load saved settings.",
+          });
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    if (!businessLoading && business) {
+      loadSettings();
+    } else if (!businessLoading && !business) {
+      setLoading(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [businessLoading, business]);
+
+  const handleToggle = (key, checked) => {
+    setSettings((prev) => ({
       ...prev,
-      [key]: !prev[key],
+      [key]: checked,
     }));
 
-    setSaved(false);
+    setMessage({ type: "", text: "" });
   };
 
-  const handleSave = () => {
-    // Settings are kept locally until the corresponding
-    // backend settings endpoint is connected.
-    setSaved(true);
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setMessage({ type: "", text: "" });
+
+      const response = await updateBusinessSettings(settings);
+
+      if (response?.data?.success === false) {
+        throw new Error(response?.data?.message || "Unable to save settings.");
+      }
+
+      const saved = response?.data?.settings;
+
+      if (saved) {
+        setSettings({
+          publicPageEnabled: saved.publicPageEnabled ?? true,
+          aiSuggestionsEnabled: saved.aiSuggestionsEnabled ?? true,
+          notificationsEnabled: saved.notificationsEnabled ?? true,
+        });
+      }
+
+      setMessage({
+        type: "success",
+        text: "Settings saved successfully.",
+      });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Unable to save settings.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  if (loading) {
+  if (businessLoading || loading) {
     return (
       <Box
         sx={{
@@ -58,12 +142,33 @@ export default function Settings() {
           placeItems: "center",
         }}
       >
-        <Typography color="text.secondary">
-          Loading settings...
-        </Typography>
+        <Typography color="text.secondary">Loading settings...</Typography>
       </Box>
     );
   }
+
+  const settingCards = [
+    {
+      key: "publicPageEnabled",
+      title: "Public Rating Page",
+      description:
+        "Allow customers to access your public TapReview rating page.",
+      Icon: PublicRoundedIcon,
+    },
+    {
+      key: "aiSuggestionsEnabled",
+      title: "AI Review Suggestions",
+      description:
+        "Allow AI-assisted suggestions to help customers prepare review text.",
+      Icon: AutoAwesomeRoundedIcon,
+    },
+    {
+      key: "notificationsEnabled",
+      title: "Notifications",
+      description: "Receive relevant account and platform notifications.",
+      Icon: NotificationsRoundedIcon,
+    },
+  ];
 
   return (
     <Box>
@@ -72,21 +177,10 @@ export default function Settings() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
       >
-        {/* Header */}
         <Box sx={{ mb: 4 }}>
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            sx={{ mb: 1 }}
-          >
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
             <SettingsRoundedIcon color="primary" />
-
-            <Typography
-              color="primary"
-              fontWeight={800}
-              fontSize={14}
-            >
+            <Typography color="primary" fontWeight={800} fontSize={14}>
               BUSINESS SETTINGS
             </Typography>
           </Stack>
@@ -105,105 +199,82 @@ export default function Settings() {
             Settings
           </Typography>
 
-          <Typography
-            color="text.secondary"
-            sx={{
-              mt: 0.75,
-              lineHeight: 1.7,
-            }}
-          >
-            Manage your public page, AI review suggestions,
-            and notification preferences.
+          <Typography color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.7 }}>
+            Manage your public page, AI review suggestions, and notification
+            preferences.
           </Typography>
         </Box>
 
-        {saved && (
-          <Alert
-            severity="success"
-            sx={{
-              mb: 3,
-              borderRadius: 2.5,
-            }}
-          >
-            Settings saved successfully.
+        {message.text && (
+          <Alert severity={message.type} sx={{ mb: 3, borderRadius: 2.5 }}>
+            {message.text}
           </Alert>
         )}
 
         <Stack spacing={2.5}>
-          {/* Public page */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="flex-start"
-                justifyContent="space-between"
-              >
+          {settingCards.map(({ key, title, description, Icon }) => (
+            <Card
+              key={key}
+              elevation={0}
+              sx={{
+                borderRadius: 4,
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <CardContent sx={{ p: { xs: 3, md: 4 } }}>
                 <Stack
                   direction="row"
                   spacing={2}
                   alignItems="flex-start"
-                  sx={{ minWidth: 0 }}
+                  justifyContent="space-between"
                 >
-                  <Box
-                    sx={{
-                      width: 46,
-                      height: 46,
-                      flexShrink: 0,
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: 3,
-                      backgroundColor: "primary.main",
-                      color: "primary.contrastText",
-                    }}
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="flex-start"
+                    sx={{ minWidth: 0 }}
                   >
-                    <PublicRoundedIcon />
-                  </Box>
-
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                    >
-                      Public Rating Page
-                    </Typography>
-
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
+                    <Box
                       sx={{
-                        mt: 0.75,
-                        lineHeight: 1.7,
+                        width: 46,
+                        height: 46,
+                        flexShrink: 0,
+                        display: "grid",
+                        placeItems: "center",
+                        borderRadius: 3,
+                        backgroundColor: "primary.main",
+                        color: "primary.contrastText",
                       }}
                     >
-                      Allow customers to access your public
-                      TapReview rating page.
-                    </Typography>
-                  </Box>
+                      <Icon />
+                    </Box>
+
+                    <Box>
+                      <Typography variant="h6" fontWeight={800}>
+                        {title}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.75, lineHeight: 1.7 }}
+                      >
+                        {description}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Switch
+                    checked={Boolean(settings[key])}
+                    onChange={(event, checked) => handleToggle(key, checked)}
+                    disabled={saving}
+                    inputProps={{ "aria-label": title }}
+                  />
                 </Stack>
+              </CardContent>
+            </Card>
+          ))}
 
-                <Switch
-                  checked={settings.publicPageEnabled}
-                  onChange={() =>
-                    handleToggle("publicPageEnabled")
-                  }
-                  inputProps={{
-                    "aria-label":
-                      "Toggle public rating page",
-                  }}
-                />
-              </Stack>
-            </CardContent>
-          </Card>
-
-          {/* AI suggestions */}
           <Card
             elevation={0}
             sx={{
@@ -213,190 +284,27 @@ export default function Settings() {
             }}
           >
             <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="flex-start"
-                justifyContent="space-between"
-              >
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  alignItems="flex-start"
-                  sx={{ minWidth: 0 }}
-                >
-                  <Box
-                    sx={{
-                      width: 46,
-                      height: 46,
-                      flexShrink: 0,
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: 3,
-                      backgroundColor: "primary.main",
-                      color: "primary.contrastText",
-                    }}
-                  >
-                    <AutoAwesomeRoundedIcon />
-                  </Box>
-
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                    >
-                      AI Review Suggestions
-                    </Typography>
-
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        mt: 0.75,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      Allow AI-assisted suggestions to help
-                      customers prepare review text.
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Switch
-                  checked={settings.aiSuggestionsEnabled}
-                  onChange={() =>
-                    handleToggle(
-                      "aiSuggestionsEnabled"
-                    )
-                  }
-                  inputProps={{
-                    "aria-label":
-                      "Toggle AI review suggestions",
-                  }}
-                />
-              </Stack>
-            </CardContent>
-          </Card>
-
-          {/* Notifications */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="flex-start"
-                justifyContent="space-between"
-              >
-                <Stack
-                  direction="row"
-                  spacing={2}
-                  alignItems="flex-start"
-                  sx={{ minWidth: 0 }}
-                >
-                  <Box
-                    sx={{
-                      width: 46,
-                      height: 46,
-                      flexShrink: 0,
-                      display: "grid",
-                      placeItems: "center",
-                      borderRadius: 3,
-                      backgroundColor: "primary.main",
-                      color: "primary.contrastText",
-                    }}
-                  >
-                    <NotificationsRoundedIcon />
-                  </Box>
-
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                    >
-                      Notifications
-                    </Typography>
-
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        mt: 0.75,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      Receive relevant account and platform
-                      notifications.
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Switch
-                  checked={settings.notificationsEnabled}
-                  onChange={() =>
-                    handleToggle(
-                      "notificationsEnabled"
-                    )
-                  }
-                  inputProps={{
-                    "aria-label":
-                      "Toggle notifications",
-                  }}
-                />
-              </Stack>
-            </CardContent>
-          </Card>
-
-          {/* Account information */}
-          <Card
-            elevation={0}
-            sx={{
-              borderRadius: 4,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-              <Typography
-                variant="h6"
-                fontWeight={800}
-              >
+              <Typography variant="h6" fontWeight={800}>
                 Account Information
               </Typography>
 
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{
-                  mt: 0.75,
-                  lineHeight: 1.7,
-                }}
+                sx={{ mt: 0.75, lineHeight: 1.7 }}
               >
-                Basic information associated with your
-                TapReview business account.
+                Basic information associated with your TapReview business
+                account.
               </Typography>
 
               <Divider sx={{ my: 3 }} />
 
               <Stack spacing={2}>
                 <Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                  >
+                  <Typography variant="body2" color="text.secondary">
                     Business Name
                   </Typography>
-
-                  <Typography
-                    fontWeight={700}
-                    sx={{ mt: 0.5 }}
-                  >
+                  <Typography fontWeight={700} sx={{ mt: 0.5 }}>
                     {business?.businessName ||
                       business?.name ||
                       "Not available"}
@@ -404,23 +312,14 @@ export default function Settings() {
                 </Box>
 
                 <Box>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                  >
+                  <Typography variant="body2" color="text.secondary">
                     Email
                   </Typography>
-
                   <Typography
                     fontWeight={700}
-                    sx={{
-                      mt: 0.5,
-                      wordBreak: "break-word",
-                    }}
+                    sx={{ mt: 0.5, wordBreak: "break-word" }}
                   >
-                    {business?.email ||
-                      business?.ownerEmail ||
-                      "Not available"}
+                    {business?.email || business?.ownerEmail || "Not available"}
                   </Typography>
                 </Box>
               </Stack>
@@ -431,6 +330,7 @@ export default function Settings() {
         <Button
           variant="contained"
           onClick={handleSave}
+          disabled={saving}
           sx={{
             mt: 3,
             minHeight: 48,
@@ -438,7 +338,7 @@ export default function Settings() {
             borderRadius: 2.5,
           }}
         >
-          Save Settings
+          {saving ? "Saving..." : "Save Settings"}
         </Button>
       </MotionBox>
     </Box>

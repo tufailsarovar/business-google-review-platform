@@ -49,22 +49,16 @@ export default function BusinessDetails() {
         setLoading(true);
         setError("");
 
-        const response =
-          await adminService.getBusinessById(id);
+        const response = await adminService.getBusinessById(id);
 
         if (!mounted) return;
 
-        setBusiness(
-          response?.data?.business ||
-            response?.data ||
-            response
-        );
+        setBusiness(response?.data?.business || response?.data || response);
       } catch (err) {
         if (!mounted) return;
 
         setError(
-          err?.response?.data?.message ||
-            "Unable to load business details."
+          err?.response?.data?.message || "Unable to load business details.",
         );
       } finally {
         if (mounted) {
@@ -106,10 +100,7 @@ export default function BusinessDetails() {
           Back to Businesses
         </Button>
 
-        <Alert
-          severity="error"
-          sx={{ borderRadius: 2.5 }}
-        >
+        <Alert severity="error" sx={{ borderRadius: 2.5 }}>
           {error || "Business not found."}
         </Alert>
       </Box>
@@ -117,47 +108,24 @@ export default function BusinessDetails() {
   }
 
   const businessName =
-    business.businessName ||
-    business.name ||
-    "Unnamed Business";
+    business.businessName || business.name || "Unnamed Business";
 
-  const email =
-    business.email ||
-    business.ownerEmail ||
-    "Not provided";
+  const email = business.email || business.ownerEmail || "Not provided";
 
-  const phone =
-    business.phone ||
-    business.mobile ||
-    "Not provided";
+  const phone = business.phone || business.mobile || "Not provided";
 
-  const category =
-    business.category ||
-    business.businessCategory ||
-    "Business";
+  const category = business.category || business.businessCategory || "Business";
 
-  const address =
-    business.address ||
-    business.location ||
-    "Not provided";
+  const address = business.address || business.location || "Not provided";
 
   const description =
-    business.description ||
-    "No business description has been added.";
+    business.description || "No business description has been added.";
 
-  const logo =
-    business.logoUrl ||
-    business.logo ||
-    "";
+  const logo = business.logoUrl || business.logo || "";
 
-  const googleUrl =
-    business.googleReviewUrl ||
-    business.googleUrl ||
-    "";
+  const googleUrl = business.googleReviewUrl || business.googleUrl || "";
 
-  const active =
-    business.isActive !== false &&
-    business.status !== "inactive";
+  const active = business.isActive !== false && business.status !== "inactive";
 
   return (
     <Box>
@@ -247,9 +215,7 @@ export default function BusinessDetails() {
                   fontWeight: 800,
                 }}
               >
-                {businessName
-                  .charAt(0)
-                  .toUpperCase()}
+                {businessName.charAt(0).toUpperCase()}
               </Avatar>
 
               <Box sx={{ flex: 1 }}>
@@ -276,9 +242,7 @@ export default function BusinessDetails() {
                   <Chip
                     label={active ? "Active" : "Inactive"}
                     size="small"
-                    color={
-                      active ? "success" : "default"
-                    }
+                    color={active ? "success" : "default"}
                   />
                 </Stack>
 
@@ -294,10 +258,7 @@ export default function BusinessDetails() {
 
             <Divider sx={{ my: 3 }} />
 
-            <Typography
-              variant="subtitle1"
-              fontWeight={800}
-            >
+            <Typography variant="subtitle1" fontWeight={800}>
               About
             </Typography>
 
@@ -326,10 +287,7 @@ export default function BusinessDetails() {
               }}
             >
               <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-                <Typography
-                  variant="h6"
-                  fontWeight={800}
-                >
+                <Typography variant="h6" fontWeight={800}>
                   Business Information
                 </Typography>
 
@@ -346,10 +304,7 @@ export default function BusinessDetails() {
                     <EmailRoundedIcon color="primary" />
 
                     <Box>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
+                      <Typography variant="body2" color="text.secondary">
                         Email
                       </Typography>
 
@@ -377,17 +332,11 @@ export default function BusinessDetails() {
                     <PhoneRoundedIcon color="primary" />
 
                     <Box>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
+                      <Typography variant="body2" color="text.secondary">
                         Phone
                       </Typography>
 
-                      <Typography
-                        fontWeight={700}
-                        sx={{ mt: 0.5 }}
-                      >
+                      <Typography fontWeight={700} sx={{ mt: 0.5 }}>
                         {phone}
                       </Typography>
                     </Box>
@@ -405,10 +354,7 @@ export default function BusinessDetails() {
                     <LocationOnRoundedIcon color="primary" />
 
                     <Box>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                      >
+                      <Typography variant="body2" color="text.secondary">
                         Address
                       </Typography>
 
@@ -440,10 +386,7 @@ export default function BusinessDetails() {
               }}
             >
               <CardContent sx={{ p: { xs: 3, md: 4 } }}>
-                <Typography
-                  variant="h6"
-                  fontWeight={800}
-                >
+                <Typography variant="h6" fontWeight={800}>
                   Review Configuration
                 </Typography>
 
@@ -456,30 +399,16 @@ export default function BusinessDetails() {
                       gap: 2,
                     }}
                   >
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                    >
+                    <Stack direction="row" spacing={1} alignItems="center">
                       <GoogleIcon color="primary" />
 
-                      <Typography fontWeight={700}>
-                        Google Reviews
-                      </Typography>
+                      <Typography fontWeight={700}>Google Reviews</Typography>
                     </Stack>
 
                     <Chip
                       size="small"
-                      label={
-                        googleUrl
-                          ? "Connected"
-                          : "Not Set"
-                      }
-                      color={
-                        googleUrl
-                          ? "success"
-                          : "warning"
-                      }
+                      label={googleUrl ? "Connected" : "Not Set"}
+                      color={googleUrl ? "success" : "warning"}
                     />
                   </Box>
 
@@ -491,29 +420,21 @@ export default function BusinessDetails() {
                       gap: 2,
                     }}
                   >
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                    >
+                    <Stack direction="row" spacing={1} alignItems="center">
                       <PublicRoundedIcon color="primary" />
 
-                      <Typography fontWeight={700}>
-                        Public Page
-                      </Typography>
+                      <Typography fontWeight={700}>Public Page</Typography>
                     </Stack>
 
                     <Chip
                       size="small"
                       label={
-                        business.publicPageEnabled ===
-                        false
+                        business.publicPageEnabled === false
                           ? "Disabled"
                           : "Enabled"
                       }
                       color={
-                        business.publicPageEnabled ===
-                        false
+                        business.publicPageEnabled === false
                           ? "default"
                           : "success"
                       }
