@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Divider,
+  IconButton,
   InputAdornment,
   Stack,
   TextField,
@@ -16,6 +17,8 @@ import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import PersonAddAltRoundedIcon from "@mui/icons-material/PersonAddAltRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+import VisibilityOffRoundedIcon from "@mui/icons-material/VisibilityOffRounded";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -39,16 +42,17 @@ export default function LoginForm() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const updateField = field => event => {
+  const updateField = (field) => (event) => {
     const value = event.target.value;
 
-    setForm(previous => ({
+    setForm((previous) => ({
       ...previous,
       [field]: value,
     }));
 
-    setErrors(previous => ({
+    setErrors((previous) => ({
       ...previous,
       [field]: "",
     }));
@@ -72,12 +76,10 @@ export default function LoginForm() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async event => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
     setServerError("");
@@ -94,14 +96,9 @@ export default function LoginForm() {
         throw new Error("Invalid login response.");
       }
 
-      const requestedPath =
-        location.state?.from?.pathname;
-
-      const requestedSearch =
-        location.state?.from?.search || "";
-
-      const requestedHash =
-        location.state?.from?.hash || "";
+      const requestedPath = location.state?.from?.pathname;
+      const requestedSearch = location.state?.from?.search || "";
+      const requestedHash = location.state?.from?.hash || "";
 
       const isAuthPage =
         requestedPath === "/login" ||
@@ -115,15 +112,13 @@ export default function LoginForm() {
             ? "/admin/dashboard"
             : "/business/dashboard";
 
-      navigate(destination, {
-        replace: true,
-      });
+      navigate(destination, { replace: true });
     } catch (error) {
       setServerError(
         getErrorMessage(
           error,
-          "Unable to sign in. Please check your credentials."
-        )
+          "Unable to sign in. Please check your credentials.",
+        ),
       );
     } finally {
       setLoading(false);
@@ -132,44 +127,18 @@ export default function LoginForm() {
 
   return (
     <MotionBox
-      initial={{
-        opacity: 0,
-        y: 15,
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-      }}
-      transition={{
-        duration: 0.4,
-        ease: "easeOut",
-      }}
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
     >
-      <Stack
-        component="form"
-        onSubmit={handleSubmit}
-        noValidate
-        spacing={2.2}
-      >
+      <Stack component="form" onSubmit={handleSubmit} noValidate spacing={2.2}>
         {/* Error */}
         <AnimatePresence mode="wait">
           {serverError && (
             <MotionBox
-              initial={{
-                opacity: 0,
-                height: 0,
-                y: -8,
-              }}
-              animate={{
-                opacity: 1,
-                height: "auto",
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                height: 0,
-                y: -8,
-              }}
+              initial={{ opacity: 0, height: 0, y: -8 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -8 }}
             >
               <Alert
                 severity="error"
@@ -196,8 +165,7 @@ export default function LoginForm() {
           onChange={updateField("email")}
           error={Boolean(errors.email)}
           helperText={
-            errors.email ||
-            "Use the email connected to your account."
+            errors.email || "Use the email connected to your account."
           }
           disabled={loading}
           InputProps={{
@@ -205,11 +173,7 @@ export default function LoginForm() {
               <InputAdornment position="start">
                 <EmailRoundedIcon
                   fontSize="small"
-                  color={
-                    errors.email
-                      ? "error"
-                      : "action"
-                  }
+                  color={errors.email ? "error" : "action"}
                 />
               </InputAdornment>
             ),
@@ -217,18 +181,12 @@ export default function LoginForm() {
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 2.5,
-              transition:
-                "all 0.25s ease",
-              "&:hover": {
-                "& .MuiOutlinedInput-notchedOutline":
-                  {
-                    borderColor:
-                      "primary.main",
-                  },
+              transition: "all 0.25s ease",
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "primary.main",
               },
               "&.Mui-focused": {
-                boxShadow:
-                  "0 0 0 3px rgba(37,99,235,0.08)",
+                boxShadow: "0 0 0 3px rgba(37,99,235,0.08)",
               },
             },
             "& .MuiFormHelperText-root": {
@@ -237,20 +195,19 @@ export default function LoginForm() {
           }}
         />
 
-        {/* Password */}
+        {/* Password with Show/Hide Toggle */}
         <TextField
           required
           fullWidth
           label="Password"
           placeholder="Enter your password"
-          type="password"
+          type={showPassword ? "text" : "password"}
           autoComplete="current-password"
           value={form.password}
           onChange={updateField("password")}
           error={Boolean(errors.password)}
           helperText={
-            errors.password ||
-            "Your password must be at least 8 characters."
+            errors.password || "Your password must be at least 8 characters."
           }
           disabled={loading}
           InputProps={{
@@ -258,30 +215,38 @@ export default function LoginForm() {
               <InputAdornment position="start">
                 <LockRoundedIcon
                   fontSize="small"
-                  color={
-                    errors.password
-                      ? "error"
-                      : "action"
-                  }
+                  color={errors.password ? "error" : "action"}
                 />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((previous) => !previous)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  edge="end"
+                  disabled={loading}
+                  size="small"
+                >
+                  {showPassword ? (
+                    <VisibilityOffRoundedIcon />
+                  ) : (
+                    <VisibilityRoundedIcon />
+                  )}
+                </IconButton>
               </InputAdornment>
             ),
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 2.5,
-              transition:
-                "all 0.25s ease",
-              "&:hover": {
-                "& .MuiOutlinedInput-notchedOutline":
-                  {
-                    borderColor:
-                      "primary.main",
-                  },
+              transition: "all 0.25s ease",
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "primary.main",
               },
               "&.Mui-focused": {
-                boxShadow:
-                  "0 0 0 3px rgba(37,99,235,0.08)",
+                boxShadow: "0 0 0 3px rgba(37,99,235,0.08)",
               },
             },
             "& .MuiFormHelperText-root": {
@@ -298,34 +263,18 @@ export default function LoginForm() {
           fullWidth
           disabled={loading}
           startIcon={<LoginRoundedIcon />}
-          whileHover={
-            !loading
-              ? {
-                  y: -2,
-                  scale: 1.01,
-                }
-              : {}
-          }
-          whileTap={
-            !loading
-              ? {
-                  scale: 0.98,
-                }
-              : {}
-          }
+          whileHover={!loading ? { y: -2, scale: 1.01 } : {}}
+          whileTap={!loading ? { scale: 0.98 } : {}}
           sx={{
             minHeight: 52,
             mt: 0.5,
             borderRadius: 2.5,
             fontWeight: 800,
             fontSize: "0.98rem",
-            boxShadow:
-              "0 8px 22px rgba(37,99,235,0.18)",
+            boxShadow: "0 8px 22px rgba(37,99,235,0.18)",
           }}
         >
-          {loading
-            ? "Signing in..."
-            : "Sign in to Dashboard"}
+          {loading ? "Signing in..." : "Sign in to Dashboard"}
         </MotionButton>
 
         {/* Forgot Password */}
@@ -348,18 +297,8 @@ export default function LoginForm() {
           Forgot your password?
         </Typography>
 
-        <Divider
-          sx={{
-            my: 0.5,
-          }}
-        >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              px: 1,
-            }}
-          >
+        <Divider sx={{ my: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
             New to TapReview?
           </Typography>
         </Divider>
@@ -371,18 +310,10 @@ export default function LoginForm() {
           variant="outlined"
           fullWidth
           disabled={loading}
-          endIcon={
-            <ArrowForwardRoundedIcon />
-          }
-          startIcon={
-            <PersonAddAltRoundedIcon />
-          }
-          whileHover={{
-            y: -2,
-          }}
-          whileTap={{
-            scale: 0.98,
-          }}
+          endIcon={<ArrowForwardRoundedIcon />}
+          startIcon={<PersonAddAltRoundedIcon />}
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.98 }}
           sx={{
             minHeight: 50,
             borderRadius: 2.5,

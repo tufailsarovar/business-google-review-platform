@@ -23,6 +23,7 @@ import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
 import GoogleIcon from "@mui/icons-material/Google";
 import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import QRCodeDownload from "../../components/common/QRCodeDownload";
 
 import adminService from "../../services/adminService";
 
@@ -459,6 +460,16 @@ export default function BusinessDetails() {
                   >
                     Open Google Review Page
                   </Button>
+                )}
+                {business.businessId && (
+                  <Box sx={{ mt: 3 }}>
+                    <QRCodeDownload
+                      url={`${window.location.origin}/rate/${encodeURIComponent(
+                        business.businessId,
+                      )}`}
+                      fileName={`tapreview-${business.businessId}`}
+                    />
+                  </Box>
                 )}
               </CardContent>
             </Card>

@@ -10,18 +10,15 @@ import {
   deleteBusiness,
   getUsers,
   getAdminProfile,
-
   getRegistrationRequests,
   getRegistrationRequestById,
   approveRegistrationRequest,
   rejectRegistrationRequest,
-
   getReviewTemplates,
   getReviewTemplateById,
   createReviewTemplate,
   updateReviewTemplate,
   deleteReviewTemplate,
-
   getAdminSettings,
   updateAdminSettings,
 } from "../controllers/adminController.js";
@@ -39,130 +36,72 @@ router.use(adminMiddleware);
    ADMIN PROFILE
 ========================================================= */
 
-router.get(
-  "/profile",
-  getAdminProfile
-);
+router.get("/profile", getAdminProfile);
 
 /* =========================================================
    DASHBOARD
 ========================================================= */
 
-router.get(
-  "/dashboard",
-  getDashboardStats
-);
+router.get("/dashboard", getDashboardStats);
 
 /* =========================================================
    REGISTRATION REQUESTS
 ========================================================= */
 
-router.get(
-  "/registration-requests",
-  getRegistrationRequests
-);
+router.get("/registration-requests", getRegistrationRequests);
 
-router.get(
-  "/registration-requests/:id",
-  getRegistrationRequestById
-);
+router.get("/registration-requests/:id", getRegistrationRequestById);
 
-router.patch(
-  "/registration-requests/:id/approve",
-  approveRegistrationRequest
-);
+router.patch("/registration-requests/:id/approve", approveRegistrationRequest);
 
-router.patch(
-  "/registration-requests/:id/reject",
-  rejectRegistrationRequest
-);
+router.patch("/registration-requests/:id/reject", rejectRegistrationRequest);
 
 /* =========================================================
    BUSINESSES
 ========================================================= */
 
-router.get(
-  "/businesses",
-  getBusinesses
-);
+router.get("/businesses", getBusinesses);
+
+router.get("/businesses/:id", getBusinessById);
 
 router.put(
   "/businesses/:id",
-  adminMiddleware, // Keep your existing admin authentication middleware
   uploadSingleImage,
-  updateBusiness
+  updateBusiness,
 );
 
-router.put(
-  "/businesses/:id",
-  updateBusiness
-);
+router.patch("/businesses/:id/activate", activateBusiness);
 
-router.patch(
-  "/businesses/:id/activate",
-  activateBusiness
-);
+router.patch("/businesses/:id/deactivate", deactivateBusiness);
 
-router.patch(
-  "/businesses/:id/deactivate",
-  deactivateBusiness
-);
-
-router.delete(
-  "/businesses/:id",
-  deleteBusiness
-);
+router.delete("/businesses/:id", deleteBusiness);
 
 /* =========================================================
    USERS
 ========================================================= */
 
-router.get(
-  "/users",
-  getUsers
-);
+router.get("/users", getUsers);
 
 /* =========================================================
    REVIEW TEMPLATES
 ========================================================= */
 
-router.get(
-  "/review-templates",
-  getReviewTemplates
-);
+router.get("/review-templates", getReviewTemplates);
 
-router.get(
-  "/review-templates/:id",
-  getReviewTemplateById
-);
+router.get("/review-templates/:id", getReviewTemplateById);
 
-router.post(
-  "/review-templates",
-  createReviewTemplate
-);
+router.post("/review-templates", createReviewTemplate);
 
-router.put(
-  "/review-templates/:id",
-  updateReviewTemplate
-);
+router.put("/review-templates/:id", updateReviewTemplate);
 
-router.delete(
-  "/review-templates/:id",
-  deleteReviewTemplate
-);
+router.delete("/review-templates/:id", deleteReviewTemplate);
 
 /* =========================================================
    PLATFORM SETTINGS
 ========================================================= */
 
-router.get(
-  "/settings",
-  getAdminSettings
-);
+router.get("/settings", getAdminSettings);
 
-router.put(
-  "/settings",
-  updateAdminSettings
-);
+router.put("/settings", updateAdminSettings);
 
 export default router;

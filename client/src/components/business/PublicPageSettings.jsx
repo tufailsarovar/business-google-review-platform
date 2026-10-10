@@ -9,39 +9,29 @@ import {
 } from "@mui/material";
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
-
+import QRCodeDownload from "../common/QRCodeDownload";
 import { PUBLIC_BUSINESS_ROUTE } from "../../utils/constants";
 
 export default function PublicPageSettings({ business }) {
   const publicUrl = useMemo(() => {
-    const businessId = business?.businessId;
-
-    if (!businessId) {
-      return "";
-    }
+    if (!business?.businessId) return "";
 
     return `${window.location.origin}${PUBLIC_BUSINESS_ROUTE(
-      encodeURIComponent(businessId)
+      encodeURIComponent(business.businessId)
     )}`;
   }, [business?.businessId]);
 
   const handleCopy = async () => {
-    if (!publicUrl) {
-      return;
-    }
+    if (!publicUrl) return;
 
     try {
       await navigator.clipboard.writeText(publicUrl);
     } catch {
       const textarea = document.createElement("textarea");
-
       textarea.value = publicUrl;
       textarea.style.position = "fixed";
       textarea.style.left = "-9999px";
-      textarea.style.top = "0";
-
       document.body.appendChild(textarea);
-      textarea.focus();
       textarea.select();
 
       try {
@@ -53,17 +43,9 @@ export default function PublicPageSettings({ business }) {
   };
 
   const handleOpenPublicPage = () => {
-    if (!business?.businessId) {
-      return;
+    if (publicUrl) {
+      window.open(publicUrl, "_blank", "noopener,noreferrer");
     }
-
-    const route = PUBLIC_BUSINESS_ROUTE(
-      encodeURIComponent(business.businessId)
-    );
-
-    const url = `${window.location.origin}${route}`;
-
-    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   if (!business?.businessId) {
@@ -74,8 +56,20 @@ export default function PublicPageSettings({ business }) {
     );
   }
 
+  const compactButtonSx = {
+    minWidth: 0,
+    minHeight: 36,
+    px: { xs: 1, sm: 1.5 },
+    borderRadius: 2,
+    fontSize: { xs: "0.68rem", sm: "0.78rem" },
+    fontWeight: 700,
+    textTransform: "none",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  };
+
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={2.5} sx={{ minWidth: 0, width: "100%" }}>
       <Stack spacing={0.5}>
         <Typography variant="subtitle1" fontWeight={800}>
           Your public review page
@@ -94,19 +88,16 @@ export default function PublicPageSettings({ business }) {
       <Paper
         variant="outlined"
         sx={{
-          p: 2,
+          p: { xs: 1.5, sm: 2 },
           borderRadius: 3,
-          backgroundColor: "grey.50",
+          bgcolor: "grey.50",
+          minWidth: 0,
         }}
       >
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{
-            display: "block",
-            mb: 0.7,
-            fontWeight: 700,
-          }}
+          sx={{ display: "block", mb: 0.7, fontWeight: 700 }}
         >
           PUBLIC URL
         </Typography>
@@ -115,6 +106,7 @@ export default function PublicPageSettings({ business }) {
           variant="body2"
           sx={{
             wordBreak: "break-all",
+            overflowWrap: "anywhere",
             lineHeight: 1.7,
             fontWeight: 600,
           }}
@@ -126,27 +118,44 @@ export default function PublicPageSettings({ business }) {
       <Divider />
 
       <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={1.2}
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        flexWrap="nowrap"
+        sx={{
+          width: "100%",
+          minWidth: 0,
+          overflowX: "auto",
+          pb: 0.5,
+        }}
       >
         <Button
           variant="outlined"
+          size="small"
           startIcon={<ContentCopyRoundedIcon />}
           onClick={handleCopy}
-          disabled={!publicUrl}
+          sx={compactButtonSx}
         >
           Copy link
         </Button>
 
         <Button
           variant="contained"
+          size="small"
           endIcon={<OpenInNewRoundedIcon />}
           onClick={handleOpenPublicPage}
-          disabled={!publicUrl}
+          sx={compactButtonSx}
         >
           Open public page
         </Button>
       </Stack>
+
+      <Divider />
+
+      <QRCodeDownload
+        url={publicUrl}
+        fileName={`tapreview-${business.businessId}`}
+      />
     </Stack>
   );
 }

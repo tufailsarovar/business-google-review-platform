@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   Divider,
   InputAdornment,
   Stack,
@@ -25,9 +24,7 @@ import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
 
-import {
-  Link,
-} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import useAuth from "../../hooks/useAuth";
 import { getErrorMessage } from "../../utils/formatters";
@@ -35,7 +32,6 @@ import { getErrorMessage } from "../../utils/formatters";
 import {
   isEmail,
   isValidMobile,
-  isValidPassword,
   isRequired,
   passwordsMatch,
 } from "../../utils/validators";
@@ -52,8 +48,20 @@ const initialForm = {
   confirmPassword: "",
 };
 
+const getPasswordChecks = (password = "") => ({
+  length: password.length >= 8,
+  uppercase: /[A-Z]/.test(password),
+  lowercase: /[a-z]/.test(password),
+  number: /[0-9]/.test(password),
+  special: /[^A-Za-z0-9]/.test(password),
+});
+
+const isStrongPassword = (password = "") =>
+  Object.values(getPasswordChecks(password)).every(Boolean);
+
 export default function SignupForm() {
   const { signup } = useAuth();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState(initialForm);
 
@@ -69,9 +77,7 @@ export default function SignupForm() {
     let value = event.target.value;
 
     if (field === "mobile") {
-      value = value
-        .replace(/\D/g, "")
-        .slice(0, 10);
+      value = value.replace(/\D/g, "").slice(0, 10);
     }
 
     setForm((previous) => ({
@@ -91,41 +97,30 @@ export default function SignupForm() {
     const nextErrors = {};
 
     if (!isRequired(form.businessName)) {
-      nextErrors.businessName =
-        "Business name is required.";
+      nextErrors.businessName = "Business name is required.";
     }
 
     if (!isRequired(form.ownerName)) {
-      nextErrors.ownerName =
-        "Owner name is required.";
+      nextErrors.ownerName = "Owner name is required.";
     }
 
     if (!isEmail(form.email)) {
-      nextErrors.email =
-        "Enter a valid email address.";
+      nextErrors.email = "Enter a valid email address.";
     }
 
-    if (
-      form.mobile &&
-      !isValidMobile(form.mobile)
-    ) {
-      nextErrors.mobile =
-        "Enter a valid 10-digit mobile number.";
+    if (form.mobile && !isValidMobile(form.mobile)) {
+      nextErrors.mobile = "Enter a valid 10-digit mobile number.";
     }
 
-    if (!isValidPassword(form.password)) {
+    if (!isStrongPassword(form.password)) {
       nextErrors.password =
-        "Password must contain at least 8 characters.";
+        "Use at least 8 characters, uppercase and lowercase letters, a number, and a special character.";
     }
 
-    if (
-      !passwordsMatch(
-        form.password,
-        form.confirmPassword
-      )
-    ) {
-      nextErrors.confirmPassword =
-        "Passwords do not match.";
+    if (!form.confirmPassword) {
+      nextErrors.confirmPassword = "Please confirm your password.";
+    } else if (!passwordsMatch(form.password, form.confirmPassword)) {
+      nextErrors.confirmPassword = "Passwords do not match.";
     }
 
     setErrors(nextErrors);
@@ -149,13 +144,9 @@ export default function SignupForm() {
 
         name: form.ownerName.trim(),
 
-        email: form.email
-          .trim()
-          .toLowerCase(),
+        email: form.email.trim().toLowerCase(),
 
-        phone: form.mobile
-          ? form.mobile.replace(/\D/g, "")
-          : "",
+        phone: form.mobile ? form.mobile.replace(/\D/g, "") : "",
 
         password: form.password,
       });
@@ -165,8 +156,8 @@ export default function SignupForm() {
       setServerError(
         getErrorMessage(
           error,
-          "Unable to submit your registration request. Please try again."
-        )
+          "Unable to submit your registration request. Please try again.",
+        ),
       );
     } finally {
       setLoading(false);
@@ -238,8 +229,7 @@ export default function SignupForm() {
               borderRadius: "50%",
               backgroundColor: "success.main",
               color: "success.contrastText",
-              boxShadow:
-                "0 12px 30px rgba(34,197,94,0.22)",
+              boxShadow: "0 12px 30px rgba(34,197,94,0.22)",
             }}
           >
             <CheckCircleRoundedIcon
@@ -280,10 +270,9 @@ export default function SignupForm() {
                 mx: "auto",
               }}
             >
-              Your business registration request
-              has been submitted successfully.
-              Our admin team will review your
-              request before activating your account.
+              Your business registration request has been submitted
+              successfully. Our admin team will review your request before
+              activating your account.
             </Typography>
           </Box>
 
@@ -298,8 +287,7 @@ export default function SignupForm() {
               borderRadius: 3,
               border: "1px solid",
               borderColor: "warning.light",
-              backgroundColor:
-                "rgba(245,158,11,0.06)",
+              backgroundColor: "rgba(245,158,11,0.06)",
             }}
           >
             <Stack
@@ -341,12 +329,8 @@ export default function SignupForm() {
                   }}
                 >
                   You will receive an email at{" "}
-                  <strong>
-                    {form.email
-                      .trim()
-                      .toLowerCase()}
-                  </strong>{" "}
-                  after your registration is approved.
+                  <strong>{form.email.trim().toLowerCase()}</strong> after your
+                  registration is approved.
                 </Typography>
               </Box>
             </Stack>
@@ -363,9 +347,8 @@ export default function SignupForm() {
               lineHeight: 1.5,
             }}
           >
-            The approval email will contain your
-            unique Business ID and a link to log in
-            to your TapReview business dashboard.
+            The approval email will contain your unique Business ID and a link
+            to log in to your TapRating business dashboard.
           </Typography>
 
           <MotionButton
@@ -410,12 +393,7 @@ export default function SignupForm() {
         ease: "easeOut",
       }}
     >
-      <Stack
-        component="form"
-        onSubmit={handleSubmit}
-        noValidate
-        spacing={1.8}
-      >
+      <Stack component="form" onSubmit={handleSubmit} noValidate spacing={1.8}>
         {/* Server Error */}
 
         <AnimatePresence mode="wait">
@@ -461,10 +439,7 @@ export default function SignupForm() {
           value={form.businessName}
           onChange={updateField("businessName")}
           error={Boolean(errors.businessName)}
-          helperText={
-            errors.businessName ||
-            "Example: TapReview"
-          }
+          helperText={errors.businessName || "Example: Royal Feast"}
           disabled={loading}
           InputProps={{
             startAdornment: (
@@ -488,8 +463,7 @@ export default function SignupForm() {
           onChange={updateField("ownerName")}
           error={Boolean(errors.ownerName)}
           helperText={
-            errors.ownerName ||
-            "Enter the name of the business owner."
+            errors.ownerName || "Enter the name of the business owner."
           }
           disabled={loading}
           InputProps={{
@@ -515,8 +489,7 @@ export default function SignupForm() {
           onChange={updateField("email")}
           error={Boolean(errors.email)}
           helperText={
-            errors.email ||
-            "We'll contact you here after admin approval."
+            errors.email || "We'll contact you here after admin approval."
           }
           disabled={loading}
           InputProps={{
@@ -540,10 +513,7 @@ export default function SignupForm() {
           value={form.mobile}
           onChange={updateField("mobile")}
           error={Boolean(errors.mobile)}
-          helperText={
-            errors.mobile ||
-            "Example: 9876543210"
-          }
+          helperText={errors.mobile || "Example: 9876543210"}
           disabled={loading}
           inputProps={{
             inputMode: "numeric",
@@ -572,10 +542,7 @@ export default function SignupForm() {
           value={form.password}
           onChange={updateField("password")}
           error={Boolean(errors.password)}
-          helperText={
-            errors.password ||
-            "Use at least 8 characters."
-          }
+          helperText={errors.password || "Use at least 8 characters."}
           disabled={loading}
           InputProps={{
             startAdornment: (
@@ -586,6 +553,44 @@ export default function SignupForm() {
           }}
           sx={fieldStyles}
         />
+
+        {form.password && (
+          <Alert
+            severity={isStrongPassword(form.password) ? "success" : "warning"}
+            icon={false}
+            sx={{
+              borderRadius: 2.5,
+              py: 0.5,
+              "& .MuiAlert-message": { width: "100%" },
+            }}
+          >
+            <Typography fontWeight={800} variant="body2" sx={{ mb: 0.75 }}>
+              {isStrongPassword(form.password)
+                ? "Strong password"
+                : "Password requirements"}
+            </Typography>
+            {Object.entries({
+              "At least 8 characters": getPasswordChecks(form.password).length,
+              "One uppercase letter (A–Z)": getPasswordChecks(form.password)
+                .uppercase,
+              "One lowercase letter (a–z)": getPasswordChecks(form.password)
+                .lowercase,
+              "One number (0–9)": getPasswordChecks(form.password).number,
+              "One special character (@, #, !)": getPasswordChecks(
+                form.password,
+              ).special,
+            }).map(([label, passed]) => (
+              <Typography
+                key={label}
+                variant="caption"
+                display="block"
+                sx={{ color: passed ? "success.dark" : "text.secondary" }}
+              >
+                {passed ? "✓" : "○"} {label}
+              </Typography>
+            ))}
+          </Alert>
+        )}
 
         {/* Confirm Password */}
 
@@ -600,8 +605,7 @@ export default function SignupForm() {
           onChange={updateField("confirmPassword")}
           error={Boolean(errors.confirmPassword)}
           helperText={
-            errors.confirmPassword ||
-            "Enter the same password again."
+            errors.confirmPassword || "Enter the same password again."
           }
           disabled={loading}
           InputProps={{
@@ -614,6 +618,21 @@ export default function SignupForm() {
           sx={fieldStyles}
         />
 
+        {form.confirmPassword && (
+          <Alert
+            severity={
+              passwordsMatch(form.password, form.confirmPassword)
+                ? "success"
+                : "error"
+            }
+            sx={{ borderRadius: 2.5, py: 0.25 }}
+          >
+            {passwordsMatch(form.password, form.confirmPassword)
+              ? "Passwords match."
+              : "Passwords do not match. Please check your confirmation."}
+          </Alert>
+        )}
+
         {/* Submit */}
 
         <MotionButton
@@ -624,10 +643,7 @@ export default function SignupForm() {
           disabled={loading}
           startIcon={
             loading ? (
-              <CircularProgress
-                size={20}
-                color="inherit"
-              />
+              <CircularProgress size={20} color="inherit" />
             ) : (
               <PersonAddAltRoundedIcon />
             )
@@ -653,23 +669,16 @@ export default function SignupForm() {
             borderRadius: 2.5,
             fontWeight: 800,
             fontSize: "0.98rem",
-            boxShadow:
-              "0 8px 22px rgba(37,99,235,0.18)",
+            boxShadow: "0 8px 22px rgba(37,99,235,0.18)",
           }}
         >
-          {loading
-            ? "Submitting request..."
-            : "Submit Registration Request"}
+          {loading ? "Submitting request..." : "Submit Registration Request"}
         </MotionButton>
 
         {/* Login Redirect */}
 
         <Divider sx={{ my: 0.5 }}>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ px: 1 }}
-          >
+          <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
             Already have an account?
           </Typography>
         </Divider>
@@ -715,8 +724,7 @@ const fieldStyles = {
     },
 
     "&.Mui-focused": {
-      boxShadow:
-        "0 0 0 3px rgba(37,99,235,0.08)",
+      boxShadow: "0 0 0 3px rgba(37,99,235,0.08)",
     },
   },
 

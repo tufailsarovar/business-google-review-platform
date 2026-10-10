@@ -6,6 +6,7 @@ import { sendBusinessApprovalEmail } from "../services/emailService.js";
 
 import cloudinary from "../config/cloudinary.js";
 import { Readable } from "stream";
+import GoogleBusiness from "../models/GoogleBusiness.js";
 
 /* =========================================================
    HELPERS
@@ -283,9 +284,6 @@ export const getBusinesses = async (req, res, next) => {
   }
 };
 
-/* =========================================================
-   GET BUSINESS BY ID
-========================================================= */
 
 export const getBusinessById = async (req, res, next) => {
   try {
@@ -298,7 +296,9 @@ export const getBusinessById = async (req, res, next) => {
       });
     }
 
-    const business = await Business.findById(businessId).select("-password");
+    const business = await Business.findById(businessId)
+      .select("-password")
+      .lean();
 
     if (!business) {
       return res.status(404).json({
@@ -307,9 +307,20 @@ export const getBusinessById = async (req, res, next) => {
       });
     }
 
+    const googleBusiness = await GoogleBusiness.findOne({
+      business: business._id,
+    }).lean();
+
+    const googleReviewUrl = googleBusiness?.reviewUrl || "";
+
     return res.status(200).json({
       success: true,
-      business,
+      business: {
+        ...business,
+        googleReviewUrl,
+        googleUrl: googleReviewUrl,
+        googleBusiness: googleBusiness || null,
+      },
     });
   } catch (error) {
     next(error);
