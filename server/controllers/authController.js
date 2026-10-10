@@ -17,6 +17,7 @@ import {
   sendEmailOtp as sendEmailOtpEmail,
   sendRegistrationConfirmationEmail,
 } from "../services/emailService.js";
+import SuperAdminOtp from "../models/SuperAdminOtp.js";
 
 /* =========================================================
    HELPERS
@@ -870,4 +871,289 @@ export const changePassword = async (req, res) => {
     message:
       "Business passwords are disabled. Sign in using email OTP or Google.",
   });
+};
+
+/* =========================================================
+   SUPER ADMIN AUTHENTICATION
+   Google + Email OTP
+========================================================= */
+
+const getSuperAdminEmails = () =>
+  String(process.env.SUPER_ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => normalizeEmail(email))
+    .filter(Boolean);
+
+const isAuthorizedSuperAdmin = (email) =>
+  getSuperAdminEmails().includes(normalizeEmail(email));
+
+const createSuperAdminSession = async (admin, res) => {
+  if (!admin || admin.isActive === false) {
+    return res.status(403).json({
+      success: false,
+      message: "Super Admin account is inactive.",
+    });
+  }
+
+  if (!isAuthorizedSuperAdmin(admin.email)) {
+    return res.status(403).json({
+      success: false,
+      message: "This account is not authorized for Super Admin access.",
+    });
+  }
+
+  admin.lastLoginAt = new Date();
+  await admin.save();
+
+  const token = generateToken({
+    id: admin._id,
+    role: "admin",
+    superAdmin: true,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Super Admin login successful.",
+    token,
+    user: {
+      id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      role: "admin",
+      superAdmin: true,
+      isActive: admin.isActive,
+    },
+  });
+};
+
+/* =========================================================
+   SEND SUPER ADMIN EMAIL OTP
+========================================================= */
+
+export const sendSuperAdminEmailOtp = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid email address.",
+      });
+    }
+
+    if (!isAuthorizedSuperAdmin(email)) {
+      return res.status(403).json({
+        success: false,
+        message: "This email is not authorized for Super Admin access.",
+      });
+    }
+
+    const admin = await Admin.findOne({ email });
+
+    if (!admin || admin.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "No active Super Admin account exists for this email.",
+      });
+    }
+
+    const now = Date.now();
+    const previous = await SuperAdminOtp.findOne({ email });
+
+    if (
+      previous?.lastSentAt &&
+      now - new Date(previous.lastSentAt).getTime() < 60 * 1000
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: "Please wait one minute before requesting another code.",
+      });
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+
+    await SuperAdminOtp.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          otpHash: hashValue(otp),
+          expiresAt: new Date(now + 5 * 60 * 1000),
+          attempts: 0,
+          lastSentAt: new Date(now),
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    try {
+      await sendEmailOtpEmail({ email, otp });
+    } catch (emailError) {
+      await SuperAdminOtp.deleteOne({ email });
+
+      console.error(
+        "Super Admin OTP delivery failed:",
+        emailError.message
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to send the OTP. Please try again.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Super Admin verification code sent. It expires in 5 minutes.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================================================
+   VERIFY SUPER ADMIN EMAIL OTP
+========================================================= */
+
+export const verifySuperAdminEmailOtp = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const otp = String(req.body.otp || "").trim();
+
+    if (!email || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter your email and six-digit verification code.",
+      });
+    }
+
+    if (!isAuthorizedSuperAdmin(email)) {
+      return res.status(403).json({
+        success: false,
+        message: "This email is not authorized for Super Admin access.",
+      });
+    }
+
+    const record = await SuperAdminOtp.findOne({ email }).select("+otpHash");
+
+    if (!record || record.expiresAt <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP is invalid or expired. Request a new code.",
+      });
+    }
+
+    if (record.attempts >= 5) {
+      await SuperAdminOtp.deleteOne({ _id: record._id });
+
+      return res.status(429).json({
+        success: false,
+        message: "Too many incorrect attempts. Request a new code.",
+      });
+    }
+
+    if (record.otpHash !== hashValue(otp)) {
+      record.attempts += 1;
+      await record.save();
+
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect verification code.",
+        attemptsRemaining: Math.max(0, 5 - record.attempts),
+      });
+    }
+
+    const admin = await Admin.findOne({ email });
+
+    await SuperAdminOtp.deleteOne({ _id: record._id });
+
+    if (!admin || admin.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "No active Super Admin account exists for this email.",
+      });
+    }
+
+    return await createSuperAdminSession(admin, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================================================
+   SUPER ADMIN GOOGLE LOGIN
+========================================================= */
+
+export const superAdminGoogleLogin = async (req, res, next) => {
+  try {
+    const credential = String(
+      req.body.credential || req.body.idToken || ""
+    ).trim();
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: "Google credential is required.",
+      });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+
+    if (!clientId) {
+      return res.status(503).json({
+        success: false,
+        message: "Google sign-in is not configured on the server.",
+      });
+    }
+
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
+        credential
+      )}`
+    );
+
+    if (!response.ok) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Google sign-in credential.",
+      });
+    }
+
+    const googleData = await response.json();
+    const email = normalizeEmail(googleData.email);
+
+    if (
+      googleData.aud !== clientId ||
+      !email ||
+      googleData.email_verified !== "true"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Google account could not be verified.",
+      });
+    }
+
+    if (!isAuthorizedSuperAdmin(email)) {
+      return res.status(403).json({
+        success: false,
+        message: "This Google account is not authorized for Super Admin access.",
+      });
+    }
+
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(403).json({
+        success: false,
+        message: "No existing Super Admin account exists for this email.",
+      });
+    }
+
+    return await createSuperAdminSession(admin, res);
+  } catch (error) {
+    next(error);
+  }
 };

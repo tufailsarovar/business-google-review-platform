@@ -13,6 +13,9 @@ import {
   verifyEmailOtp as verifyEmailOtpApi,
   completeBusinessRegistration as completeBusinessRegistrationApi,
   googleLogin as googleLoginApi,
+  sendSuperAdminEmailOtp as sendSuperAdminEmailOtpApi,
+  verifySuperAdminEmailOtp as verifySuperAdminEmailOtpApi,
+  superAdminGoogleLogin as superAdminGoogleLoginApi,
 } from "../services/authService";
 
 import { STORAGE_KEYS } from "../utils/constants";
@@ -51,13 +54,15 @@ export function AuthProvider({ children }) {
 
     me()
       .then((response) => {
-        if (!mounted) return;
-        setUser(response.data?.user || null);
+        if (mounted) {
+          setUser(response.data?.user || null);
+        }
       })
       .catch(() => {
-        if (!mounted) return;
-        localStorage.removeItem(STORAGE_KEYS.TOKEN);
-        setUser(null);
+        if (mounted) {
+          localStorage.removeItem(STORAGE_KEYS.TOKEN);
+          setUser(null);
+        }
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -68,17 +73,13 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Admin password login is preserved.
+  // Existing admin password login.
   const adminLogin = useCallback(
     async (data) => {
       const response = await adminLoginApi(data);
       const responseData = response.data;
 
-      if (!responseData?.token) {
-        throw new Error("Admin login response did not contain a token.");
-      }
-
-      if (responseData?.user?.role !== "admin") {
+      if (!responseData?.token || responseData?.user?.role !== "admin") {
         throw new Error("This account does not have admin access.");
       }
 
@@ -87,7 +88,7 @@ export function AuthProvider({ children }) {
     [saveSession],
   );
 
-  // Request an email verification code.
+  // Business email OTP.
   const sendEmailOtp = useCallback(async (email) => {
     const response = await sendEmailOtpApi({
       email: String(email || "")
@@ -98,7 +99,6 @@ export function AuthProvider({ children }) {
     return response.data;
   }, []);
 
-  // Verify the email OTP. This does not create an authenticated session.
   const verifyEmailOtp = useCallback(async ({ email, otp }) => {
     const response = await verifyEmailOtpApi({
       email: String(email || "")
@@ -110,14 +110,11 @@ export function AuthProvider({ children }) {
     return response.data;
   }, []);
 
-  // Submit business details after email verification.
   const completeBusinessRegistration = useCallback(async (data) => {
     const response = await completeBusinessRegistrationApi(data);
     return response.data;
   }, []);
 
-  // Google login can return either an authenticated session or a
-  // registrationRequired response for a new business.
   const googleLogin = useCallback(
     async (credential) => {
       const response = await googleLoginApi({ credential });
@@ -132,17 +129,78 @@ export function AuthProvider({ children }) {
     [saveSession],
   );
 
+  // Super Admin email OTP.
+  const sendSuperAdminEmailOtp = useCallback(async (email) => {
+    const response = await sendSuperAdminEmailOtpApi({
+      email: String(email || "")
+        .trim()
+        .toLowerCase(),
+    });
+
+    return response.data;
+  }, []);
+
+  const verifySuperAdminEmailOtp = useCallback(
+    async ({ email, otp }) => {
+      const response = await verifySuperAdminEmailOtpApi({
+        email: String(email || "")
+          .trim()
+          .toLowerCase(),
+        otp: String(otp || "").trim(),
+      });
+
+      const responseData = response.data;
+
+      if (
+        !responseData?.token ||
+        responseData?.user?.role !== "admin" ||
+        responseData?.user?.superAdmin !== true
+      ) {
+        throw new Error(
+          "The server did not return an authorized Super Admin session.",
+        );
+      }
+
+      return saveSession(responseData);
+    },
+    [saveSession],
+  );
+
+  // Super Admin Google login.
+  const superAdminGoogleLogin = useCallback(
+    async (credential) => {
+      const response = await superAdminGoogleLoginApi({ credential });
+      const responseData = response.data;
+
+      if (
+        !responseData?.token ||
+        responseData?.user?.role !== "admin" ||
+        responseData?.user?.superAdmin !== true
+      ) {
+        throw new Error(
+          "The server did not return an authorized Super Admin session.",
+        );
+      }
+
+      return saveSession(responseData);
+    },
+    [saveSession],
+  );
+
   const value = useMemo(
     () => ({
       user,
       loading,
+      isAuthenticated: Boolean(user),
       adminLogin,
       sendEmailOtp,
       verifyEmailOtp,
       completeBusinessRegistration,
       googleLogin,
+      sendSuperAdminEmailOtp,
+      verifySuperAdminEmailOtp,
+      superAdminGoogleLogin,
       logout,
-      isAuthenticated: Boolean(user),
     }),
     [
       user,
@@ -152,6 +210,9 @@ export function AuthProvider({ children }) {
       verifyEmailOtp,
       completeBusinessRegistration,
       googleLogin,
+      sendSuperAdminEmailOtp,
+      verifySuperAdminEmailOtp,
+      superAdminGoogleLogin,
       logout,
     ],
   );
