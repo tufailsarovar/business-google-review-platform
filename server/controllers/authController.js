@@ -4,158 +4,472 @@ import bcrypt from "bcryptjs";
 import Business from "../models/Business.js";
 import PasswordReset from "../models/PasswordReset.js";
 import EmailVerification from "../models/EmailVerification.js";
+import EmailOtp from "../models/EmailOtp.js";
+import Admin from "../models/Admin.js";
+import PlatformSettings from "../models/PlatformSettings.js";
 
 import generateToken from "../utils/generateToken.js";
 import generateBusinessId from "../utils/generateBusinessId.js";
-import Admin from "../models/Admin.js";
 
 import {
   sendVerificationEmail,
   sendForgotPasswordEmail,
+  sendEmailOtp as sendEmailOtpEmail,
+  sendRegistrationConfirmationEmail,
 } from "../services/emailService.js";
-import PlatformSettings from "../models/PlatformSettings.js";
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 const normalizeEmail = (email) =>
-  String(email || "")
-    .trim()
-    .toLowerCase();
+  String(email || "").trim().toLowerCase();
+
+const hashValue = (value) =>
+  crypto.createHash("sha256").update(String(value)).digest("hex");
+
+const safeUser = (business) => ({
+  id: business._id,
+  businessId: business.businessId,
+  name: business.name,
+  businessName: business.businessName,
+  email: business.email,
+  phone: business.phone,
+  role: business.role || "business",
+  isEmailVerified: business.isEmailVerified,
+  isActive: business.isActive !== false,
+  approvalStatus: business.approvalStatus,
+});
+
+const createBusinessId = async (businessName) => {
+  let businessId = generateBusinessId(businessName);
+
+  while (await Business.exists({ businessId })) {
+    businessId = generateBusinessId(businessName);
+  }
+
+  return businessId;
+};
+
+const createBusinessSession = (business, res) => {
+  const token = generateToken({
+    id: business._id,
+    role: business.role || "business",
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Login successful.",
+    token,
+    user: safeUser(business),
+  });
+};
+
+const checkBusinessAccess = (business, res) => {
+  if (business.approvalStatus === "pending") {
+    res.status(403).json({
+      success: false,
+      message: "Your registration request is still pending admin approval.",
+      approvalStatus: "pending",
+    });
+
+    return false;
+  }
+
+  if (business.approvalStatus === "rejected") {
+    res.status(403).json({
+      success: false,
+      message:
+        "Your registration request was rejected. Please contact support.",
+      approvalStatus: "rejected",
+    });
+
+    return false;
+  }
+
+  if (business.approvalStatus !== "approved") {
+    res.status(403).json({
+      success: false,
+      message: "Your business account has not been approved yet.",
+    });
+
+    return false;
+  }
+
+  if (business.isActive === false) {
+    res.status(403).json({
+      success: false,
+      message: "Your business account is currently inactive.",
+    });
+
+    return false;
+  }
+
+  return true;
+};
 
 const createVerificationToken = async (businessId) => {
   const token = crypto.randomBytes(32).toString("hex");
 
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-  await EmailVerification.deleteMany({
-    business: businessId,
-  });
+  await EmailVerification.deleteMany({ business: businessId });
 
   await EmailVerification.create({
     business: businessId,
-    token: tokenHash,
+    token: hashValue(token),
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
   });
 
   return token;
 };
 
-/*
- * BUSINESS SIGNUP
- *
- * Signup only creates a pending registration request.
- * No JWT is generated.
- * No verification email is sent at this stage.
- * Admin must approve the request first.
- */
-export const signup = async (req, res, next) => {
+/* =========================================================
+   SEND EMAIL OTP
+========================================================= */
+
+export const sendEmailOtp = async (req, res, next) => {
   try {
-    const { name, businessName, email, password, phone } = req.body;
+    const email = normalizeEmail(req.body.email);
 
-    const normalizedEmail = normalizeEmail(email);
-
-    if (!name || !businessName || !normalizedEmail || !password) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({
         success: false,
-        message: "Name, business name, email and password are required.",
+        message: "Enter a valid email address.",
       });
     }
 
-    const platformSettings = await PlatformSettings.findOne();
+    const existing = await Business.findOne({ email });
 
-    if (platformSettings?.allowRegistration === false) {
+    if (existing) {
+      if (!checkBusinessAccess(existing, res)) return;
+    } else {
+      const settings = await PlatformSettings.findOne();
+
+      if (settings?.allowRegistration === false) {
+        return res.status(403).json({
+          success: false,
+          message: "New business registrations are currently disabled.",
+        });
+      }
+    }
+
+    const now = Date.now();
+    const previous = await EmailOtp.findOne({ email });
+
+    if (
+      previous?.lastSentAt &&
+      now - new Date(previous.lastSentAt).getTime() < 60 * 1000
+    ) {
+      return res.status(429).json({
+        success: false,
+        message: "Please wait one minute before requesting another code.",
+      });
+    }
+
+    const otp = crypto.randomInt(100000, 1000000).toString();
+
+    await EmailOtp.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          otpHash: hashValue(otp),
+          expiresAt: new Date(now + 5 * 60 * 1000),
+          attempts: 0,
+          lastSentAt: new Date(now),
+          verified: false,
+        },
+        $unset: {
+          verificationTokenHash: 1,
+          verificationTokenExpiresAt: 1,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    try {
+      await sendEmailOtpEmail({ email, otp });
+    } catch (emailError) {
+      await EmailOtp.deleteOne({ email });
+
+      console.error("Email OTP delivery failed:", emailError.message);
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to send the verification code. Please try again.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Verification code sent to your email. It expires in 5 minutes.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================================================
+   VERIFY EMAIL OTP
+========================================================= */
+
+export const verifyEmailOtp = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const otp = String(req.body.otp || "").trim();
+
+    if (!email || !/^\d{6}$/.test(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter your email and the six-digit verification code.",
+      });
+    }
+
+    const record = await EmailOtp.findOne({ email }).select("+otpHash");
+
+    if (!record || record.expiresAt <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Verification code is invalid or expired. Request a new one.",
+      });
+    }
+
+    if (record.attempts >= 5) {
+      await EmailOtp.deleteOne({ _id: record._id });
+
+      return res.status(429).json({
+        success: false,
+        message: "Too many incorrect attempts. Request a new code.",
+      });
+    }
+
+    if (record.otpHash !== hashValue(otp)) {
+      record.attempts += 1;
+      await record.save();
+
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect verification code.",
+        attemptsRemaining: Math.max(0, 5 - record.attempts),
+      });
+    }
+
+    const business = await Business.findOne({ email });
+
+    if (business) {
+      if (!checkBusinessAccess(business, res)) return;
+
+      if (!business.isEmailVerified) {
+        business.isEmailVerified = true;
+        await business.save();
+      }
+
+      await EmailOtp.deleteOne({ _id: record._id });
+
+      return createBusinessSession(business, res);
+    }
+
+    const settings = await PlatformSettings.findOne();
+
+    if (settings?.allowRegistration === false) {
+      await EmailOtp.deleteOne({ _id: record._id });
+
       return res.status(403).json({
         success: false,
         message: "New business registrations are currently disabled.",
       });
     }
 
-    // EXISTING CODE — keep this below
-    if (password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters long.",
-      });
-    }
+    const verificationToken = crypto.randomBytes(32).toString("hex");
 
-    if (password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters long.",
-      });
-    }
+    record.verified = true;
+    record.verificationTokenHash = hashValue(verificationToken);
+    record.verificationTokenExpiresAt = new Date(
+      Date.now() + 15 * 60 * 1000
+    );
 
-    const existingBusiness = await Business.findOne({
-      email: normalizedEmail,
+    await record.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully.",
+      registrationRequired: true,
+      verificationToken,
     });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    if (existingBusiness) {
-      if (existingBusiness.approvalStatus === "pending") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "Your registration request is already pending admin approval.",
-        });
-      }
+/* =========================================================
+   COMPLETE BUSINESS REGISTRATION
+========================================================= */
 
-      if (existingBusiness.approvalStatus === "approved") {
-        return res.status(409).json({
-          success: false,
-          message: "An account with this email already exists.",
-        });
-      }
+export const completeBusinessRegistration = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const name = String(req.body.name || req.body.ownerName || "").trim();
+    const businessName = String(req.body.businessName || "").trim();
+    const phone = String(req.body.phone || req.body.mobile || "").trim();
 
-      if (existingBusiness.approvalStatus === "rejected") {
-        return res.status(409).json({
-          success: false,
-          message:
-            "This registration request was rejected. Please contact support.",
-        });
-      }
+    const verificationToken = String(
+      req.body.verificationToken || ""
+    ).trim();
 
+    const googleCredential = String(
+      req.body.googleCredential || ""
+    ).trim();
+
+    if (!email || !name || !businessName || !phone) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Email, owner name, business name and mobile number are required.",
+      });
+    }
+
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      name.length > 100 ||
+      businessName.length > 150 ||
+      phone.length > 25
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide valid registration details.",
+      });
+    }
+
+    const settings = await PlatformSettings.findOne();
+
+    if (settings?.allowRegistration === false) {
+      return res.status(403).json({
+        success: false,
+        message: "New business registrations are currently disabled.",
+      });
+    }
+
+    if (await Business.exists({ email })) {
       return res.status(409).json({
         success: false,
         message: "An account with this email already exists.",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    let verifiedByGoogle = false;
 
-    let businessId = generateBusinessId(businessName);
+    if (googleCredential) {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
 
-    while (await Business.exists({ businessId })) {
-      businessId = generateBusinessId(businessName);
+      if (!clientId) {
+        return res.status(503).json({
+          success: false,
+          message: "Google sign-in is not configured on the server.",
+        });
+      }
+
+      const googleResponse = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
+          googleCredential
+        )}`
+      );
+
+      if (!googleResponse.ok) {
+        return res.status(401).json({
+          success: false,
+          message: "Google sign-in verification failed.",
+        });
+      }
+
+      const googleData = await googleResponse.json();
+
+      if (
+        googleData.aud !== clientId ||
+        normalizeEmail(googleData.email) !== email ||
+        googleData.email_verified !== "true"
+      ) {
+        return res.status(401).json({
+          success: false,
+          message: "Google account verification failed.",
+        });
+      }
+
+      verifiedByGoogle = true;
     }
+
+    if (!verifiedByGoogle) {
+      if (!verificationToken) {
+        return res.status(401).json({
+          success: false,
+          message: "Verify your email before completing registration.",
+        });
+      }
+
+      const record = await EmailOtp.findOne({
+        email,
+        verified: true,
+        verificationTokenHash: hashValue(verificationToken),
+        verificationTokenExpiresAt: { $gt: new Date() },
+      }).select("+verificationTokenHash");
+
+      if (!record) {
+        return res.status(401).json({
+          success: false,
+          message:
+            "Email verification expired or invalid. Verify your email again.",
+        });
+      }
+
+      await EmailOtp.deleteOne({ _id: record._id });
+    }
+
+    const businessId = await createBusinessId(businessName);
 
     const business = await Business.create({
       businessId,
-
-      name: String(name).trim(),
-
-      businessName: String(businessName).trim(),
-
-      email: normalizedEmail,
-
-      password: hashedPassword,
-
-      phone: phone ? String(phone).trim() : "",
-
+      name,
+      businessName,
+      email,
+      phone,
       role: "business",
-
       approvalStatus: "pending",
-
       isActive: false,
-
-      isEmailVerified: false,
-
+      isEmailVerified: true,
       status: "inactive",
     });
 
+    // Do not undo registration if confirmation email delivery fails.
+    let confirmationEmailSent = false;
+
+    try {
+      await sendRegistrationConfirmationEmail({
+        email: business.email,
+        name: business.name,
+        businessName: business.businessName,
+        businessId: business.businessId,
+      });
+
+      confirmationEmailSent = true;
+    } catch (emailError) {
+      console.error(
+        "Registration confirmation email failed:",
+        emailError.message
+      );
+    }
+
     return res.status(201).json({
       success: true,
-      message:
-        "Registration request submitted successfully. Your account is waiting for admin approval. You will receive your Business ID and login link by email after approval.",
       registrationPending: true,
+      confirmationEmailSent,
+      message: confirmationEmailSent
+        ? "Registration submitted successfully. A confirmation email has been sent. Your account is pending admin approval."
+        : "Registration submitted successfully, but the confirmation email could not be sent. Your account is pending admin approval.",
       user: {
         id: business._id,
+        businessId: business.businessId,
         name: business.name,
         businessName: business.businessName,
         email: business.email,
@@ -164,26 +478,134 @@ export const signup = async (req, res, next) => {
       },
     });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email or business ID already exists.",
+      });
+    }
+
     next(error);
   }
 };
 
+/* =========================================================
+   GOOGLE LOGIN
+========================================================= */
+
+export const googleLogin = async (req, res, next) => {
+  try {
+    const credential = String(
+      req.body.credential || req.body.idToken || ""
+    ).trim();
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: "Google credential is required.",
+      });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+
+    if (!clientId) {
+      return res.status(503).json({
+        success: false,
+        message: "Google sign-in is not configured on the server.",
+      });
+    }
+
+    const googleResponse = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
+        credential
+      )}`
+    );
+
+    if (!googleResponse.ok) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Google sign-in credential.",
+      });
+    }
+
+    const googleData = await googleResponse.json();
+
+    if (
+      googleData.aud !== clientId ||
+      !googleData.email ||
+      googleData.email_verified !== "true"
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Google account could not be verified.",
+      });
+    }
+
+    const email = normalizeEmail(googleData.email);
+    const business = await Business.findOne({ email });
+
+    if (!business) {
+      const settings = await PlatformSettings.findOne();
+
+      if (settings?.allowRegistration === false) {
+        return res.status(403).json({
+          success: false,
+          message: "New business registrations are currently disabled.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        registrationRequired: true,
+        googleCredential: credential,
+        email,
+        name: String(googleData.name || ""),
+        message: "Complete your business details to submit your registration.",
+      });
+    }
+
+    if (!business.isEmailVerified) {
+      business.isEmailVerified = true;
+      await business.save();
+    }
+
+    if (!checkBusinessAccess(business, res)) return;
+
+    return createBusinessSession(business, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* =========================================================
+   LEGACY BUSINESS SIGNUP - DISABLED
+========================================================= */
+
+export const signup = async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message:
+      "Password-based business signup is disabled. Use email OTP or Google sign-in.",
+  });
+};
+
+/* =========================================================
+   ADMIN LOGIN
+========================================================= */
+
 export const adminLogin = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const password = req.body.password;
 
-    const normalizedEmail = normalizeEmail(email);
-
-    if (!normalizedEmail || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required.",
       });
     }
 
-    const admin = await Admin.findOne({
-      email: normalizedEmail,
-    }).select("+password");
+    const admin = await Admin.findOne({ email }).select("+password");
 
     if (!admin) {
       return res.status(401).json({
@@ -199,9 +621,7 @@ export const adminLogin = async (req, res, next) => {
       });
     }
 
-    const passwordMatch = await bcrypt.compare(password, admin.password);
-
-    if (!passwordMatch) {
+    if (!(await bcrypt.compare(password, admin.password))) {
       return res.status(401).json({
         success: false,
         message: "Invalid admin email or password.",
@@ -209,7 +629,6 @@ export const adminLogin = async (req, res, next) => {
     }
 
     admin.lastLoginAt = new Date();
-
     await admin.save();
 
     const token = generateToken({
@@ -234,103 +653,25 @@ export const adminLogin = async (req, res, next) => {
   }
 };
 
-export const login = async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
+/* =========================================================
+   LEGACY BUSINESS LOGIN - DISABLED
+========================================================= */
 
-    const normalizedEmail = normalizeEmail(email);
-
-    if (!normalizedEmail || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password are required.",
-      });
-    }
-
-    const business = await Business.findOne({
-      email: normalizedEmail,
-    }).select("+password");
-
-    if (!business) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
-      });
-    }
-
-    /*
-     * Approval check must happen before
-     * allowing business login.
-     */
-    if (business.approvalStatus === "pending") {
-      return res.status(403).json({
-        success: false,
-        message: "Your registration request is still pending admin approval.",
-      });
-    }
-
-    if (business.approvalStatus === "rejected") {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Your registration request was rejected. Please contact support.",
-      });
-    }
-
-    if (business.approvalStatus !== "approved") {
-      return res.status(403).json({
-        success: false,
-        message: "Your business account has not been approved yet.",
-      });
-    }
-
-    if (business.isActive === false) {
-      return res.status(403).json({
-        success: false,
-        message: "Your business account is currently inactive.",
-      });
-    }
-
-    const passwordMatch = await bcrypt.compare(password, business.password);
-
-    if (!passwordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password.",
-      });
-    }
-
-    const token = generateToken({
-      id: business._id,
-      role: business.role || "business",
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Login successful.",
-      token,
-      user: {
-        id: business._id,
-        businessId: business.businessId,
-        name: business.name,
-        businessName: business.businessName,
-        email: business.email,
-        phone: business.phone,
-        role: business.role || "business",
-        isEmailVerified: business.isEmailVerified,
-        isActive: business.isActive !== false,
-        approvalStatus: business.approvalStatus,
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
+export const login = async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message:
+      "Password-based business login is disabled. Use email OTP or Google sign-in.",
+  });
 };
+
+/* =========================================================
+   GET CURRENT USER
+========================================================= */
 
 export const getMe = async (req, res, next) => {
   try {
     const userId = req.user?.id || req.user?._id;
-
     const role = req.user?.role;
 
     if (!userId) {
@@ -378,43 +719,24 @@ export const getMe = async (req, res, next) => {
       });
     }
 
-    if (business.approvalStatus !== "approved") {
-      return res.status(403).json({
-        success: false,
-        message: "Your business account has not been approved.",
-      });
-    }
-
-    if (business.isActive === false) {
-      return res.status(403).json({
-        success: false,
-        message: "Your business account is inactive.",
-      });
-    }
+    if (!checkBusinessAccess(business, res)) return;
 
     return res.status(200).json({
       success: true,
-      user: {
-        id: business._id,
-        businessId: business.businessId,
-        name: business.name,
-        businessName: business.businessName,
-        email: business.email,
-        phone: business.phone,
-        role: business.role || "business",
-        isEmailVerified: business.isEmailVerified,
-        isActive: business.isActive !== false,
-        approvalStatus: business.approvalStatus,
-      },
+      user: safeUser(business),
     });
   } catch (error) {
     next(error);
   }
 };
 
+/* =========================================================
+   LEGACY EMAIL VERIFICATION LINK
+========================================================= */
+
 export const verifyEmail = async (req, res, next) => {
   try {
-    const { token } = req.params;
+    const token = String(req.params.token || "");
 
     if (!token) {
       return res.status(400).json({
@@ -423,13 +745,9 @@ export const verifyEmail = async (req, res, next) => {
       });
     }
 
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
     const verification = await EmailVerification.findOne({
-      token: tokenHash,
-      expiresAt: {
-        $gt: new Date(),
-      },
+      token: hashValue(token),
+      expiresAt: { $gt: new Date() },
     });
 
     if (!verification) {
@@ -449,12 +767,9 @@ export const verifyEmail = async (req, res, next) => {
     }
 
     business.isEmailVerified = true;
-
     await business.save();
 
-    await EmailVerification.deleteMany({
-      business: business._id,
-    });
+    await EmailVerification.deleteMany({ business: business._id });
 
     return res.status(200).json({
       success: true,
@@ -465,25 +780,27 @@ export const verifyEmail = async (req, res, next) => {
   }
 };
 
+/* =========================================================
+   RESEND EMAIL VERIFICATION
+========================================================= */
+
 export const resendVerificationEmail = async (req, res, next) => {
   try {
-    const normalizedEmail = normalizeEmail(req.body.email);
+    const email = normalizeEmail(req.body.email);
 
-    if (!normalizedEmail) {
+    if (!email) {
       return res.status(400).json({
         success: false,
         message: "Email is required.",
       });
     }
 
-    const business = await Business.findOne({
-      email: normalizedEmail,
-    });
+    const business = await Business.findOne({ email });
 
     if (!business) {
-      return res.status(404).json({
-        success: false,
-        message: "No account found with this email.",
+      return res.status(200).json({
+        success: true,
+        message: "If eligible, a verification email will be sent.",
       });
     }
 
@@ -502,12 +819,12 @@ export const resendVerificationEmail = async (req, res, next) => {
       });
     }
 
-    const verificationToken = await createVerificationToken(business._id);
+    const token = await createVerificationToken(business._id);
 
     await sendVerificationEmail({
       email: business.email,
       name: business.name,
-      token: verificationToken,
+      token,
     });
 
     return res.status(200).json({
@@ -519,201 +836,38 @@ export const resendVerificationEmail = async (req, res, next) => {
   }
 };
 
-export const forgotPassword = async (req, res, next) => {
-  try {
-    const normalizedEmail = normalizeEmail(req.body.email);
+/* =========================================================
+   LEGACY FORGOT PASSWORD - DISABLED
+========================================================= */
 
-    if (!normalizedEmail) {
-      return res.status(400).json({
-        success: false,
-        message: "Email is required.",
-      });
-    }
-
-    const business = await Business.findOne({
-      email: normalizedEmail,
-    });
-
-    if (!business) {
-      return res.status(200).json({
-        success: true,
-        message:
-          "If an account exists with this email, a password reset link has been sent.",
-      });
-    }
-
-    if (business.approvalStatus !== "approved") {
-      return res.status(200).json({
-        success: true,
-        message:
-          "If an account exists with this email, a password reset link has been sent.",
-      });
-    }
-
-    const rawToken = crypto.randomBytes(32).toString("hex");
-
-    const tokenHash = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
-
-    await PasswordReset.deleteMany({
-      business: business._id,
-    });
-
-    await PasswordReset.create({
-      business: business._id,
-      token: tokenHash,
-      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-    });
-
-    try {
-      await sendForgotPasswordEmail({
-        email: business.email,
-        name: business.name,
-        token: rawToken,
-      });
-    } catch (emailError) {
-      console.error("Password reset email failed:", emailError.message);
-    }
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "If an account exists with this email, a password reset link has been sent.",
-    });
-  } catch (error) {
-    next(error);
-  }
+export const forgotPassword = async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message:
+      "Business passwords are disabled. Sign in using email OTP or Google.",
+  });
 };
 
-export const resetPassword = async (req, res, next) => {
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
+/* =========================================================
+   LEGACY RESET PASSWORD - DISABLED
+========================================================= */
 
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: "Reset token is required.",
-      });
-    }
-
-    if (!password || password.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "Password must be at least 8 characters long.",
-      });
-    }
-
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-    const resetRequest = await PasswordReset.findOne({
-      token: tokenHash,
-      expiresAt: {
-        $gt: new Date(),
-      },
-    });
-
-    if (!resetRequest) {
-      return res.status(400).json({
-        success: false,
-        message: "Reset link is invalid or expired.",
-      });
-    }
-
-    const business = await Business.findById(resetRequest.business).select(
-      "+password",
-    );
-
-    if (!business) {
-      return res.status(404).json({
-        success: false,
-        message: "Business account not found.",
-      });
-    }
-
-    if (business.approvalStatus !== "approved") {
-      return res.status(403).json({
-        success: false,
-        message: "Your business account is not approved.",
-      });
-    }
-
-    business.password = await bcrypt.hash(password, 12);
-
-    await business.save();
-
-    await PasswordReset.deleteMany({
-      business: business._id,
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Password reset successfully.",
-    });
-  } catch (error) {
-    next(error);
-  }
+export const resetPassword = async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message:
+      "Business passwords are disabled. Sign in using email OTP or Google.",
+  });
 };
 
-export const changePassword = async (req, res, next) => {
-  try {
-    const userId = req.user?.id || req.user?._id;
+/* =========================================================
+   LEGACY CHANGE PASSWORD - DISABLED
+========================================================= */
 
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password and new password are required.",
-      });
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        success: false,
-        message: "New password must be at least 8 characters long.",
-      });
-    }
-
-    const business = await Business.findById(userId).select("+password");
-
-    if (!business) {
-      return res.status(404).json({
-        success: false,
-        message: "Business account not found.",
-      });
-    }
-
-    if (business.approvalStatus !== "approved") {
-      return res.status(403).json({
-        success: false,
-        message: "Your business account is not approved.",
-      });
-    }
-
-    const passwordMatch = await bcrypt.compare(
-      currentPassword,
-      business.password,
-    );
-
-    if (!passwordMatch) {
-      return res.status(400).json({
-        success: false,
-        message: "Current password is incorrect.",
-      });
-    }
-
-    business.password = await bcrypt.hash(newPassword, 12);
-
-    await business.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Password changed successfully.",
-    });
-  } catch (error) {
-    next(error);
-  }
+export const changePassword = async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message:
+      "Business passwords are disabled. Sign in using email OTP or Google.",
+  });
 };

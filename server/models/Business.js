@@ -33,9 +33,10 @@ const businessSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Optional for legacy records. New business accounts use
+    // verified email OTP or Google sign-in instead of passwords.
     password: {
       type: String,
-      required: true,
       minlength: 8,
       select: false,
     },
@@ -123,21 +124,21 @@ const businessSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
     aiSuggestionsEnabled: {
       type: Boolean,
       default: true,
     },
+
     notificationsEnabled: {
       type: Boolean,
       default: true,
     },
 
     /*
-     * Account access status.
-     *
-     * pending  = signup request submitted, waiting for admin approval
-     * approved = admin approved the business and login is allowed
-     * rejected = admin rejected the signup request
+     * pending  = registration waiting for admin approval
+     * approved = admin approved the business
+     * rejected = admin rejected the registration
      */
     approvalStatus: {
       type: String,

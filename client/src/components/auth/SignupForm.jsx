@@ -1,18 +1,16 @@
-import { useState } from "react";
-
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Divider,
   InputAdornment,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-
 import { motion, AnimatePresence } from "framer-motion";
-
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
@@ -23,18 +21,10 @@ import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import HourglassTopRoundedIcon from "@mui/icons-material/HourglassTopRounded";
-
-import { Link, useNavigate } from "react-router-dom";
-
+import { Link } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
 import { getErrorMessage } from "../../utils/formatters";
-
-import {
-  isEmail,
-  isValidMobile,
-  isRequired,
-  passwordsMatch,
-} from "../../utils/validators";
+import { isEmail, isValidMobile, isRequired } from "../../utils/validators";
 
 const MotionBox = motion(Box);
 const MotionButton = motion(Button);
@@ -44,34 +34,143 @@ const initialForm = {
   ownerName: "",
   email: "",
   mobile: "",
-  password: "",
-  confirmPassword: "",
 };
 
-const getPasswordChecks = (password = "") => ({
-  length: password.length >= 8,
-  uppercase: /[A-Z]/.test(password),
-  lowercase: /[a-z]/.test(password),
-  number: /[0-9]/.test(password),
-  special: /[^A-Za-z0-9]/.test(password),
-});
-
-const isStrongPassword = (password = "") =>
-  Object.values(getPasswordChecks(password)).every(Boolean);
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 export default function SignupForm() {
-  const { signup } = useAuth();
-  const navigate = useNavigate();
+  const {
+    sendEmailOtp,
+    verifyEmailOtp,
+    completeBusinessRegistration,
+    googleLogin,
+  } = useAuth();
+
+  const googleButtonRef = useRef(null);
 
   const [form, setForm] = useState(initialForm);
-
-  const [errors, setErrors] = useState({});
-
-  const [serverError, setServerError] = useState("");
-
-  const [loading, setLoading] = useState(false);
-
+  const [otp, setOtp] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
+  const [googleCredential, setGoogleCredential] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [loadingAction, setLoadingAction] = useState("");
+  const [googleReady, setGoogleReady] = useState(false);
+
+  const busy = Boolean(loadingAction);
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return undefined;
+
+    let cancelled = false;
+
+    const initializeGoogle = () => {
+      if (cancelled || !window.google?.accounts?.id) return;
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          if (!response?.credential) {
+            setServerError("Google sign-in did not return a valid credential.");
+            return;
+          }
+
+          setLoadingAction("google");
+          setServerError("");
+          setNotice("");
+
+          try {
+            const result = await googleLogin(response.credential);
+            const data = result?.data ?? result;
+
+            if (data?.registrationRequired) {
+              setGoogleCredential(response.credential);
+              setForm((previous) => ({
+                ...previous,
+                email: data.email || previous.email,
+                ownerName: data.name || previous.ownerName,
+              }));
+              setEmailVerified(true);
+              setVerificationToken("");
+              setNotice(
+                "Google email verified. Complete your business details below.",
+              );
+            } else if (data?.token) {
+              setNotice(
+                "Your business account is approved. You can now sign in.",
+              );
+            } else {
+              setServerError(
+                data?.message || "Unable to continue with Google sign-in.",
+              );
+            }
+          } catch (error) {
+            setServerError(
+              getErrorMessage(
+                error,
+                "Google sign-in failed. Please try again.",
+              ),
+            );
+          } finally {
+            setLoadingAction("");
+          }
+        },
+      });
+
+      if (googleButtonRef.current) {
+        googleButtonRef.current.innerHTML = "";
+
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          shape: "rectangular",
+          text: "continue_with",
+          width: Math.min(
+            400,
+            Math.max(240, googleButtonRef.current.clientWidth || 320),
+          ),
+        });
+      }
+
+      setGoogleReady(true);
+    };
+
+    if (window.google?.accounts?.id) {
+      initializeGoogle();
+    } else {
+      let script = document.querySelector(
+        'script[src="https://accounts.google.com/gsi/client"]',
+      );
+
+      const handleLoad = () => initializeGoogle();
+
+      if (!script) {
+        script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.defer = true;
+        script.addEventListener("load", handleLoad);
+        document.head.appendChild(script);
+      } else {
+        script.addEventListener("load", handleLoad);
+
+        if (window.google?.accounts?.id) initializeGoogle();
+      }
+
+      return () => {
+        cancelled = true;
+        script?.removeEventListener("load", handleLoad);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleLogin]);
 
   const updateField = (field) => (event) => {
     let value = event.target.value;
@@ -80,20 +179,22 @@ export default function SignupForm() {
       value = value.replace(/\D/g, "").slice(0, 10);
     }
 
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+    if (field === "email") {
+      value = value.trimStart();
+      setEmailVerified(false);
+      setVerificationToken("");
+      setGoogleCredential("");
+      setOtpSent(false);
+      setOtp("");
+    }
 
-    setErrors((previous) => ({
-      ...previous,
-      [field]: "",
-    }));
-
+    setForm((previous) => ({ ...previous, [field]: value }));
+    setErrors((previous) => ({ ...previous, [field]: "" }));
     setServerError("");
+    setNotice("");
   };
 
-  const validate = () => {
+  const validateDetails = () => {
     const nextErrors = {};
 
     if (!isRequired(form.businessName)) {
@@ -108,248 +209,196 @@ export default function SignupForm() {
       nextErrors.email = "Enter a valid email address.";
     }
 
-    if (form.mobile && !isValidMobile(form.mobile)) {
+    if (!isValidMobile(form.mobile)) {
       nextErrors.mobile = "Enter a valid 10-digit mobile number.";
     }
 
-    if (!isStrongPassword(form.password)) {
-      nextErrors.password =
-        "Use at least 8 characters, uppercase and lowercase letters, a number, and a special character.";
-    }
-
-    if (!form.confirmPassword) {
-      nextErrors.confirmPassword = "Please confirm your password.";
-    } else if (!passwordsMatch(form.password, form.confirmPassword)) {
-      nextErrors.confirmPassword = "Passwords do not match.";
-    }
-
     setErrors(nextErrors);
-
     return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSendOtp = async () => {
+    const nextErrors = {};
+
+    if (!isEmail(form.email)) {
+      nextErrors.email = "Enter a valid email address.";
+      setErrors(nextErrors);
+      return;
+    }
+
+    setLoadingAction("send-otp");
+    setServerError("");
+    setNotice("");
+
+    try {
+      const result = await sendEmailOtp(form.email.trim().toLowerCase());
+      const data = result?.data ?? result;
+
+      setOtpSent(true);
+      setOtp("");
+      setVerificationToken("");
+      setEmailVerified(false);
+      setGoogleCredential("");
+      setNotice(data?.message || "Verification code sent to your email.");
+    } catch (error) {
+      setServerError(
+        getErrorMessage(error, "Unable to send the code. Please try again."),
+      );
+    } finally {
+      setLoadingAction("");
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!/^\d{6}$/.test(otp)) {
+      setServerError("Enter the six-digit code sent to your email.");
+      return;
+    }
+
+    setLoadingAction("verify-otp");
+    setServerError("");
+    setNotice("");
+
+    try {
+      const result = await verifyEmailOtp({
+        email: form.email.trim().toLowerCase(),
+        otp,
+      });
+
+      const data = result?.data ?? result;
+
+      if (!data?.verificationToken) {
+        throw new Error("Email verification token was not returned.");
+      }
+
+      setVerificationToken(data.verificationToken);
+      setEmailVerified(true);
+      setGoogleCredential("");
+      setOtpSent(false);
+      setNotice(data.message || "Email verified successfully.");
+    } catch (error) {
+      setServerError(
+        getErrorMessage(error, "Incorrect or expired code. Please try again."),
+      );
+    } finally {
+      setLoadingAction("");
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!validate()) {
+    if (!validateDetails()) return;
+
+    if (!emailVerified || (!verificationToken && !googleCredential)) {
+      setServerError(
+        "Verify your email using OTP or Google before continuing.",
+      );
       return;
     }
 
-    setLoading(true);
+    setLoadingAction("submit");
     setServerError("");
+    setNotice("");
 
     try {
-      await signup({
+      const result = await completeBusinessRegistration({
         businessName: form.businessName.trim(),
-
         name: form.ownerName.trim(),
-
         email: form.email.trim().toLowerCase(),
-
-        phone: form.mobile ? form.mobile.replace(/\D/g, "") : "",
-
-        password: form.password,
+        phone: form.mobile,
+        ...(verificationToken ? { verificationToken } : {}),
+        ...(googleCredential ? { googleCredential } : {}),
       });
+
+      const data = result?.data ?? result;
+
+      if (data?.success === false) {
+        throw new Error(data.message || "Registration could not be submitted.");
+      }
 
       setSubmitted(true);
     } catch (error) {
       setServerError(
         getErrorMessage(
           error,
-          "Unable to submit your registration request. Please try again.",
+          "Unable to submit your registration. Please try again.",
         ),
       );
     } finally {
-      setLoading(false);
+      setLoadingAction("");
     }
   };
-
-  /* =========================================================
-     REGISTRATION SUBMITTED
-  ========================================================= */
 
   if (submitted) {
     return (
       <MotionBox
-        initial={{
-          opacity: 0,
-          y: 18,
-          scale: 0.98,
-        }}
-        animate={{
-          opacity: 1,
-          y: 0,
-          scale: 1,
-        }}
-        transition={{
-          duration: 0.45,
-          ease: "easeOut",
-        }}
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
       >
         <Stack
-          spacing={2.2}
+          spacing={2.5}
           alignItems="center"
           textAlign="center"
-          sx={{
-            py: {
-              xs: 2,
-              sm: 4,
-            },
-            px: {
-              xs: 1,
-              sm: 3,
-            },
-          }}
+          sx={{ py: 3 }}
         >
-          <MotionBox
-            initial={{
-              scale: 0,
-              rotate: -20,
-            }}
-            animate={{
-              scale: 1,
-              rotate: 0,
-            }}
-            transition={{
-              delay: 0.15,
-              duration: 0.45,
-              type: "spring",
-            }}
+          <Box
             sx={{
-              width: {
-                xs: 68,
-                sm: 82,
-              },
-              height: {
-                xs: 68,
-                sm: 82,
-              },
+              width: 76,
+              height: 76,
               display: "grid",
               placeItems: "center",
               borderRadius: "50%",
-              backgroundColor: "success.main",
+              bgcolor: "success.main",
               color: "success.contrastText",
-              boxShadow: "0 12px 30px rgba(34,197,94,0.22)",
             }}
           >
-            <CheckCircleRoundedIcon
-              sx={{
-                fontSize: {
-                  xs: 38,
-                  sm: 48,
-                },
-              }}
-            />
-          </MotionBox>
-
-          <Box>
-            <Typography
-              component="h1"
-              fontWeight={900}
-              sx={{
-                fontSize: {
-                  xs: "1.35rem",
-                  sm: "1.8rem",
-                },
-                lineHeight: 1.2,
-              }}
-            >
-              Registration Submitted
-            </Typography>
-
-            <Typography
-              color="text.secondary"
-              sx={{
-                mt: 1,
-                fontSize: {
-                  xs: "0.78rem",
-                  sm: "0.9rem",
-                },
-                lineHeight: 1.6,
-                maxWidth: 470,
-                mx: "auto",
-              }}
-            >
-              Your business registration request has been submitted
-              successfully. Our admin team will review your request before
-              activating your account.
-            </Typography>
+            <CheckCircleRoundedIcon sx={{ fontSize: 46 }} />
           </Box>
+
+          <Typography component="h1" variant="h4" fontWeight={900}>
+            Registration Submitted
+          </Typography>
+
+          <Typography
+            color="text.secondary"
+            sx={{ maxWidth: 470, lineHeight: 1.7 }}
+          >
+            Your business registration request has been submitted successfully.
+            Our admin team will review your details before activating your
+            account.
+          </Typography>
 
           <Box
             sx={{
               width: "100%",
               maxWidth: 470,
-              p: {
-                xs: 1.7,
-                sm: 2.2,
-              },
+              p: 2,
               borderRadius: 3,
               border: "1px solid",
               borderColor: "warning.light",
-              backgroundColor: "rgba(245,158,11,0.06)",
+              bgcolor: "rgba(245,158,11,0.06)",
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.2}
-              alignItems="flex-start"
-              textAlign="left"
-            >
-              <HourglassTopRoundedIcon
-                color="warning"
-                sx={{
-                  mt: 0.15,
-                  flexShrink: 0,
-                }}
-              />
+            <Stack direction="row" spacing={1.2} alignItems="flex-start">
+              <HourglassTopRoundedIcon color="warning" />
 
-              <Box>
-                <Typography
-                  fontWeight={800}
-                  sx={{
-                    fontSize: {
-                      xs: "0.82rem",
-                      sm: "0.9rem",
-                    },
-                  }}
-                >
+              <Box sx={{ textAlign: "left" }}>
+                <Typography fontWeight={800}>
                   Waiting for admin approval
                 </Typography>
-
                 <Typography
+                  variant="body2"
                   color="text.secondary"
-                  sx={{
-                    mt: 0.4,
-                    fontSize: {
-                      xs: "0.7rem",
-                      sm: "0.78rem",
-                    },
-                    lineHeight: 1.5,
-                  }}
+                  sx={{ mt: 0.5 }}
                 >
-                  You will receive an email at{" "}
-                  <strong>{form.email.trim().toLowerCase()}</strong> after your
-                  registration is approved.
+                  You will receive updates at <strong>{form.email}</strong>.
+                  Business dashboard access is available after approval.
                 </Typography>
               </Box>
             </Stack>
           </Box>
-
-          <Typography
-            color="text.secondary"
-            sx={{
-              fontSize: {
-                xs: "0.68rem",
-                sm: "0.76rem",
-              },
-              maxWidth: 440,
-              lineHeight: 1.5,
-            }}
-          >
-            The approval email will contain your unique Business ID and a link
-            to log in to your TapRating business dashboard.
-          </Typography>
 
           <MotionButton
             component={Link}
@@ -358,12 +407,8 @@ export default function SignupForm() {
             fullWidth
             startIcon={<LoginRoundedIcon />}
             endIcon={<ArrowForwardRoundedIcon />}
-            whileHover={{
-              y: -2,
-            }}
-            whileTap={{
-              scale: 0.98,
-            }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
             sx={{
               maxWidth: 470,
               minHeight: 50,
@@ -380,55 +425,38 @@ export default function SignupForm() {
 
   return (
     <MotionBox
-      initial={{
-        opacity: 0,
-        y: 18,
-      }}
-      animate={{
-        opacity: 1,
-        y: 0,
-      }}
-      transition={{
-        duration: 0.45,
-        ease: "easeOut",
-      }}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
     >
       <Stack component="form" onSubmit={handleSubmit} noValidate spacing={1.8}>
-        {/* Server Error */}
-
         <AnimatePresence mode="wait">
           {serverError && (
             <MotionBox
-              initial={{
-                opacity: 0,
-                height: 0,
-                y: -8,
-              }}
-              animate={{
-                opacity: 1,
-                height: "auto",
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                height: 0,
-                y: -8,
-              }}
+              key="error"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
             >
-              <Alert
-                severity="error"
-                sx={{
-                  borderRadius: 2.5,
-                  alignItems: "center",
-                }}
-              >
+              <Alert severity="error" sx={{ borderRadius: 2.5 }}>
                 {serverError}
               </Alert>
             </MotionBox>
           )}
-        </AnimatePresence>
 
-        {/* Business Name */}
+          {notice && (
+            <MotionBox
+              key="notice"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <Alert severity="success" sx={{ borderRadius: 2.5 }}>
+                {notice}
+              </Alert>
+            </MotionBox>
+          )}
+        </AnimatePresence>
 
         <TextField
           required
@@ -440,7 +468,7 @@ export default function SignupForm() {
           onChange={updateField("businessName")}
           error={Boolean(errors.businessName)}
           helperText={errors.businessName || "Example: Royal Feast"}
-          disabled={loading}
+          disabled={busy}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -451,8 +479,6 @@ export default function SignupForm() {
           sx={fieldStyles}
         />
 
-        {/* Owner Name */}
-
         <TextField
           required
           fullWidth
@@ -462,10 +488,8 @@ export default function SignupForm() {
           value={form.ownerName}
           onChange={updateField("ownerName")}
           error={Boolean(errors.ownerName)}
-          helperText={
-            errors.ownerName || "Enter the name of the business owner."
-          }
-          disabled={loading}
+          helperText={errors.ownerName || "Name of the business owner"}
+          disabled={busy}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -476,35 +500,99 @@ export default function SignupForm() {
           sx={fieldStyles}
         />
 
-        {/* Email */}
-
         <TextField
           required
           fullWidth
           label="Email address"
-          placeholder="Enter your business email"
+          placeholder="Enter your email address"
           type="email"
           autoComplete="email"
           value={form.email}
           onChange={updateField("email")}
           error={Boolean(errors.email)}
           helperText={
-            errors.email || "We'll contact you here after admin approval."
+            errors.email ||
+            (emailVerified
+              ? "Email verified successfully."
+              : "Verify your email to continue.")
           }
-          disabled={loading}
+          disabled={busy || emailVerified}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
                 <EmailRoundedIcon fontSize="small" />
               </InputAdornment>
             ),
+            endAdornment: emailVerified ? (
+              <InputAdornment position="end">
+                <CheckCircleRoundedIcon color="success" />
+              </InputAdornment>
+            ) : null,
           }}
           sx={fieldStyles}
         />
 
-        {/* Mobile */}
+        {!emailVerified && (
+          <>
+            <Button
+              type="button"
+              variant="outlined"
+              fullWidth
+              onClick={handleSendOtp}
+              disabled={busy}
+              sx={{ minHeight: 46, borderRadius: 2.5, fontWeight: 800 }}
+            >
+              {loadingAction === "send-otp" ? (
+                <CircularProgress size={21} />
+              ) : otpSent ? (
+                "Resend Email Code"
+              ) : (
+                "Send Email Verification Code"
+              )}
+            </Button>
+
+            {otpSent && (
+              <Stack spacing={1.2}>
+                <TextField
+                  fullWidth
+                  label="6-digit email code"
+                  placeholder="Enter verification code"
+                  value={otp}
+                  onChange={(event) =>
+                    setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  inputProps={{ inputMode: "numeric", maxLength: 6 }}
+                  disabled={busy}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockRoundedIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={fieldStyles}
+                />
+
+                <Button
+                  type="button"
+                  variant="contained"
+                  onClick={handleVerifyOtp}
+                  disabled={busy || otp.length !== 6}
+                  sx={{ minHeight: 46, borderRadius: 2.5, fontWeight: 800 }}
+                >
+                  {loadingAction === "verify-otp" ? (
+                    <CircularProgress size={21} color="inherit" />
+                  ) : (
+                    "Verify Email"
+                  )}
+                </Button>
+              </Stack>
+            )}
+          </>
+        )}
 
         <TextField
+          required
           fullWidth
           label="Mobile number"
           placeholder="Enter 10-digit mobile number"
@@ -514,12 +602,8 @@ export default function SignupForm() {
           onChange={updateField("mobile")}
           error={Boolean(errors.mobile)}
           helperText={errors.mobile || "Example: 9876543210"}
-          disabled={loading}
-          inputProps={{
-            inputMode: "numeric",
-            maxLength: 10,
-            pattern: "[0-9]*",
-          }}
+          disabled={busy}
+          inputProps={{ inputMode: "numeric", maxLength: 10 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -530,139 +614,21 @@ export default function SignupForm() {
           sx={fieldStyles}
         />
 
-        {/* Password */}
-
-        <TextField
-          required
-          fullWidth
-          label="Password"
-          placeholder="Create a strong password"
-          type="password"
-          autoComplete="new-password"
-          value={form.password}
-          onChange={updateField("password")}
-          error={Boolean(errors.password)}
-          helperText={errors.password || "Use at least 8 characters."}
-          disabled={loading}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <LockRoundedIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={fieldStyles}
-        />
-
-        {form.password && (
-          <Alert
-            severity={isStrongPassword(form.password) ? "success" : "warning"}
-            icon={false}
-            sx={{
-              borderRadius: 2.5,
-              py: 0.5,
-              "& .MuiAlert-message": { width: "100%" },
-            }}
-          >
-            <Typography fontWeight={800} variant="body2" sx={{ mb: 0.75 }}>
-              {isStrongPassword(form.password)
-                ? "Strong password"
-                : "Password requirements"}
-            </Typography>
-            {Object.entries({
-              "At least 8 characters": getPasswordChecks(form.password).length,
-              "One uppercase letter (A–Z)": getPasswordChecks(form.password)
-                .uppercase,
-              "One lowercase letter (a–z)": getPasswordChecks(form.password)
-                .lowercase,
-              "One number (0–9)": getPasswordChecks(form.password).number,
-              "One special character (@, #, !)": getPasswordChecks(
-                form.password,
-              ).special,
-            }).map(([label, passed]) => (
-              <Typography
-                key={label}
-                variant="caption"
-                display="block"
-                sx={{ color: passed ? "success.dark" : "text.secondary" }}
-              >
-                {passed ? "✓" : "○"} {label}
-              </Typography>
-            ))}
-          </Alert>
-        )}
-
-        {/* Confirm Password */}
-
-        <TextField
-          required
-          fullWidth
-          label="Confirm password"
-          placeholder="Re-enter your password"
-          type="password"
-          autoComplete="new-password"
-          value={form.confirmPassword}
-          onChange={updateField("confirmPassword")}
-          error={Boolean(errors.confirmPassword)}
-          helperText={
-            errors.confirmPassword || "Enter the same password again."
-          }
-          disabled={loading}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <LockRoundedIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-          sx={fieldStyles}
-        />
-
-        {form.confirmPassword && (
-          <Alert
-            severity={
-              passwordsMatch(form.password, form.confirmPassword)
-                ? "success"
-                : "error"
-            }
-            sx={{ borderRadius: 2.5, py: 0.25 }}
-          >
-            {passwordsMatch(form.password, form.confirmPassword)
-              ? "Passwords match."
-              : "Passwords do not match. Please check your confirmation."}
-          </Alert>
-        )}
-
-        {/* Submit */}
-
         <MotionButton
           type="submit"
           variant="contained"
           size="large"
           fullWidth
-          disabled={loading}
+          disabled={busy || !emailVerified}
           startIcon={
-            loading ? (
+            loadingAction === "submit" ? (
               <CircularProgress size={20} color="inherit" />
             ) : (
               <PersonAddAltRoundedIcon />
             )
           }
-          whileHover={
-            !loading
-              ? {
-                  y: -2,
-                  scale: 1.01,
-                }
-              : {}
-          }
-          whileTap={
-            !loading
-              ? {
-                  scale: 0.98,
-                }
-              : {}
-          }
+          whileHover={!busy ? { y: -2, scale: 1.01 } : {}}
+          whileTap={!busy ? { scale: 0.98 } : {}}
           sx={{
             minHeight: 52,
             mt: 0.5,
@@ -672,14 +638,44 @@ export default function SignupForm() {
             boxShadow: "0 8px 22px rgba(37,99,235,0.18)",
           }}
         >
-          {loading ? "Submitting request..." : "Submit Registration Request"}
+          {loadingAction === "submit"
+            ? "Submitting registration..."
+            : "Submit Registration Request"}
         </MotionButton>
-
-        {/* Login Redirect */}
 
         <Divider sx={{ my: 0.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
-            Already have an account?
+            OR CONTINUE WITH
+          </Typography>
+        </Divider>
+
+        {GOOGLE_CLIENT_ID ? (
+          <Box
+            sx={{
+              minHeight: 44,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              "& > div": { maxWidth: "100%" },
+            }}
+          >
+            <Box ref={googleButtonRef} />
+            {!googleReady && (
+              <Typography variant="caption" color="text.secondary">
+                {busy ? "Connecting..." : "Loading Google sign-in..."}
+              </Typography>
+            )}
+          </Box>
+        ) : (
+          <Alert severity="info" sx={{ borderRadius: 2.5 }}>
+            Google sign-in will be available after configuring
+            VITE_GOOGLE_CLIENT_ID.
+          </Alert>
+        )}
+
+        <Divider sx={{ my: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+            ALREADY REGISTERED?
           </Typography>
         </Divider>
 
@@ -688,23 +684,17 @@ export default function SignupForm() {
           to="/login"
           variant="outlined"
           fullWidth
-          disabled={loading}
+          disabled={busy}
           startIcon={<LoginRoundedIcon />}
           endIcon={<ArrowForwardRoundedIcon />}
-          whileHover={{
-            y: -2,
-          }}
-          whileTap={{
-            scale: 0.98,
-          }}
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.98 }}
           sx={{
             minHeight: 50,
             borderRadius: 2.5,
             fontWeight: 700,
             borderWidth: 1.5,
-            "&:hover": {
-              borderWidth: 1.5,
-            },
+            "&:hover": { borderWidth: 1.5 },
           }}
         >
           Back to Login
@@ -718,16 +708,13 @@ const fieldStyles = {
   "& .MuiOutlinedInput-root": {
     borderRadius: 2.5,
     transition: "all 0.25s ease",
-
     "&:hover .MuiOutlinedInput-notchedOutline": {
       borderColor: "primary.main",
     },
-
     "&.Mui-focused": {
       boxShadow: "0 0 0 3px rgba(37,99,235,0.08)",
     },
   },
-
   "& .MuiFormHelperText-root": {
     ml: 0.5,
   },
