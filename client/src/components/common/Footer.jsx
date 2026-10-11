@@ -211,7 +211,7 @@ export default function Footer() {
             to="/"
             direction="row"
             alignItems="center"
-            spacing={0.7}
+            spacing={-0.5}
             aria-label="TapReview home"
             sx={{ textDecoration: "none", minWidth: 0 }}
           >
@@ -221,8 +221,8 @@ export default function Footer() {
               alt="TapReview logo"
               sx={{
                 display: "block",
-                width: { xs: 38, sm: 44 },
-                height: { xs: 38, sm: 44 },
+                width: { xs: 38, sm: 70 },
+                height: { xs: 38, sm: 70 },
                 flexShrink: 0,
                 objectFit: "contain",
               }}

@@ -67,7 +67,7 @@ export default function Navbar() {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: { xs: 0.5, sm: 0 },
+                gap: { xs: 0.3, sm: 0 },
                 textDecoration: "none",
                 zIndex: 1,
                 minWidth: 0,
@@ -78,8 +78,8 @@ export default function Navbar() {
                 src="/glyrus_round_logo.png"
                 alt="TapReview logo"
                 sx={{
-                  width: { xs: 45, sm: 75 },
-                  height: { xs: 45, sm: 75 },
+                  width: { xs: 45, sm: 70 },
+                  height: { xs: 45, sm: 70 },
                   objectFit: "contain",
                   flexShrink: 0,
                 }}
