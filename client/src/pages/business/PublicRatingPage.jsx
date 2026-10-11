@@ -1,4 +1,3 @@
-
 import { useBusiness } from "../../hooks/useBusiness";
 import PublicPageSettings from "../../components/business/PublicPageSettings";
 import { Alert, Box, Typography } from "@mui/material";
@@ -7,53 +6,22 @@ export default function PublicRatingPage() {
   const { business, error } = useBusiness();
 
   return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography
-          component="h1"
-          variant="h4"
-          fontWeight={800}
-          sx={{
-            fontSize: {
-              xs: "1.8rem",
-              sm: "2.3rem",
-            },
-          }}
-        >
-          Public Rating Page
-        </Typography>
+    <Box sx={{ width: "100%", minHeight: "60vh" }}>
+      <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+        Public Rating Page
+      </Typography>
 
-        <Typography
-          color="text.secondary"
-          sx={{
-            mt: 0.75,
-            lineHeight: 1.7,
-          }}
-        >
-          Customize how your business appears on the public customer rating
-          page.
-        </Typography>
-      </Box>
+      <Typography color="text.secondary" sx={{ mb: 3 }}>
+        Manage your public business rating page.
+      </Typography>
 
       {error && (
-        <Alert
-          severity="error"
-          sx={{
-            mb: 3,
-            borderRadius: 2.5,
-          }}
-        >
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
       {business && <PublicPageSettings business={business} />}
-
-      {!business && !error && (
-        <Typography color="text.secondary">
-          Loading business settings...
-        </Typography>
-      )}
     </Box>
   );
 }
