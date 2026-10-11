@@ -167,7 +167,7 @@ export default function BusinessRating() {
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
     : "";
 
-  if (error || !business) {
+  if (error || (!business && !loading)) {
     return (
       <Box
         sx={{
@@ -192,19 +192,20 @@ export default function BusinessRating() {
           }}
         >
           <BusinessRoundedIcon sx={{ fontSize: 40, color: "#3158c9" }} />
+
           <Typography variant="h5" fontWeight={800}>
             Business page unavailable
           </Typography>
-          <Typography color="text.secondary">{error}</Typography>
+
+          <Typography color="text.secondary">
+            {error || "Unable to load this business page."}
+          </Typography>
+
           <Button
             variant="contained"
             startIcon={<RefreshRoundedIcon />}
             onClick={() => setRetryKey((previous) => previous + 1)}
-            sx={{
-              textTransform: "none",
-              borderRadius: 2,
-              boxShadow: "none",
-            }}
+            sx={{ textTransform: "none", borderRadius: 2, boxShadow: "none" }}
           >
             Try again
           </Button>
