@@ -235,7 +235,10 @@ export default function SignupForm() {
     setNotice("");
 
     try {
-      const result = await sendEmailOtp(form.email.trim().toLowerCase());
+      const result = await sendEmailOtp(
+        form.email.trim().toLowerCase(),
+        "registration",
+      );
       const data = result?.data ?? result;
 
       setOtpSent(true);
@@ -469,11 +472,7 @@ export default function SignupForm() {
         noValidate
         spacing={{ xs: 1.2, sm: 1.8 }}
       >
-        <Stack
-          alignItems="center"
-          spacing={0}
-          sx={{ mb: { xs: 0.5, sm: 1} }}
-        >
+        <Stack alignItems="center" spacing={0} sx={{ mb: { xs: 0.5, sm: 1 } }}>
           <Box
             component="img"
             src="/glyrus_round_logo.png"

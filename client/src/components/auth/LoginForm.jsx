@@ -156,27 +156,16 @@ export default function LoginForm() {
     setLoadingAction("send-otp");
 
     try {
-      const result = await sendEmailOtp(normalizedEmail);
+      const result = await sendEmailOtp(normalizedEmail, "login");
       const data = result?.data ?? result;
 
       setOtpSent(true);
       setOtp("");
       setNotice(data?.message || "Verification code sent to your email.");
     } catch (error) {
-      const message = getErrorMessage(
-        error,
-        "Unable to send the verification code.",
+      setServerError(
+        getErrorMessage(error, "Unable to send the verification code."),
       );
-
-      if (
-        /business.*not found|not registered|no business|account does not exist/i.test(
-          message,
-        )
-      ) {
-        redirectToSignupAfterAlert({ email: normalizedEmail });
-      } else {
-        setServerError(message);
-      }
     } finally {
       setLoadingAction("");
     }

@@ -89,11 +89,12 @@ export function AuthProvider({ children }) {
   );
 
   // Business email OTP.
-  const sendEmailOtp = useCallback(async (email) => {
+  const sendEmailOtp = useCallback(async (email, purpose = "login") => {
     const response = await sendEmailOtpApi({
       email: String(email || "")
         .trim()
         .toLowerCase(),
+      purpose,
     });
 
     return response.data;

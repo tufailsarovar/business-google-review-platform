@@ -140,11 +140,30 @@ export const sendEmailOtp = async (req, res, next) => {
       });
     }
 
+    const purpose =
+      req.body.purpose === "registration" ? "registration" : "login";
+
     const existing = await Business.findOne({ email });
 
-    if (existing) {
-      if (!checkBusinessAccess(existing, res)) return;
-    } else {
+    if (purpose === "login" && !existing) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No business account found with this email. Please create an account first.",
+      });
+    }
+
+    if (purpose === "registration" && existing) {
+      return res.status(409).json({
+        success: false,
+        alreadyRegistered: true,
+        message: "This email is already registered. Please sign in instead.",
+      });
+    }
+
+    if (existing && !checkBusinessAccess(existing, res)) return;
+
+    if (purpose === "registration") {
       const settings = await PlatformSettings.findOne();
 
       if (settings?.allowRegistration === false) {
@@ -217,7 +236,6 @@ export const sendEmailOtp = async (req, res, next) => {
 /* =========================================================
    VERIFY EMAIL OTP
 ========================================================= */
-
 
 export const verifyEmailOtp = async (req, res, next) => {
   try {
@@ -292,9 +310,7 @@ export const verifyEmailOtp = async (req, res, next) => {
 
     record.verified = true;
     record.verificationTokenHash = hashValue(verificationToken);
-    record.verificationTokenExpiresAt = new Date(
-      Date.now() + 15 * 60 * 1000
-    );
+    record.verificationTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     await record.save();
 
@@ -308,7 +324,6 @@ export const verifyEmailOtp = async (req, res, next) => {
     next(error);
   }
 };
-
 
 /* =========================================================
    COMPLETE BUSINESS REGISTRATION
