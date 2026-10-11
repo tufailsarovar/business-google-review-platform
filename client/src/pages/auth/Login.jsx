@@ -22,42 +22,7 @@ export default function Login() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 2.5, sm: 4, md: 5 },
-              borderRadius: 5,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Box sx={{ textAlign: "center", mb: 4 }}>
-              <Typography
-                component="h1"
-                variant="h4"
-                fontWeight={800}
-                sx={{
-                  fontSize: {
-                    xs: "1.8rem",
-                    sm: "2.2rem",
-                  },
-                }}
-              >
-                Welcome Back
-              </Typography>
-
-              <Typography
-                color="text.secondary"
-                sx={{
-                  mt: 1,
-                  lineHeight: 1.7,
-                }}
-              >
-                Sign in to manage your TapReview business
-                account.
-              </Typography>
-            </Box>
-
+          <Paper elevation={0}>
             <LoginForm />
           </Paper>
         </MotionBox>

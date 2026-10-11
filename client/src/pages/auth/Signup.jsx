@@ -24,40 +24,7 @@ export default function Signup() {
         >
           <Paper
             elevation={0}
-            sx={{
-              p: { xs: 2.5, sm: 4, md: 5 },
-              borderRadius: 5,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
           >
-            <Box sx={{ textAlign: "center", mb: 4 }}>
-              <Typography
-                component="h1"
-                variant="h4"
-                fontWeight={800}
-                sx={{
-                  fontSize: {
-                    xs: "1.8rem",
-                    sm: "2.2rem",
-                  },
-                }}
-              >
-                Create Your Account
-              </Typography>
-
-              <Typography
-                color="text.secondary"
-                sx={{
-                  mt: 1,
-                  lineHeight: 1.7,
-                }}
-              >
-                Create your business account and start using
-                TapReview.
-              </Typography>
-            </Box>
-
             <SignupForm />
           </Paper>
         </MotionBox>
