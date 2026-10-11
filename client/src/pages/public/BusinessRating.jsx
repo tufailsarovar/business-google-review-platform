@@ -167,27 +167,6 @@ export default function BusinessRating() {
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
     : "";
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: "100dvh",
-          display: "grid",
-          placeItems: "center",
-          p: 2,
-          bgcolor: "#f4f7fd",
-        }}
-      >
-        <Stack alignItems="center" spacing={1.5}>
-          <CircularProgress size={28} />
-          <Typography color="text.secondary">
-            Loading business page...
-          </Typography>
-        </Stack>
-      </Box>
-    );
-  }
-
   if (error || !business) {
     return (
       <Box
