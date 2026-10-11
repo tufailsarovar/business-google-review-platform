@@ -6,219 +6,99 @@ import {
   useState,
 } from "react";
 
-import {
-  adminLogin as adminLoginApi,
-  me,
-  sendEmailOtp as sendEmailOtpApi,
-  verifyEmailOtp as verifyEmailOtpApi,
-  completeBusinessRegistration as completeBusinessRegistrationApi,
-  googleLogin as googleLoginApi,
-  sendSuperAdminEmailOtp as sendSuperAdminEmailOtpApi,
-  verifySuperAdminEmailOtp as verifySuperAdminEmailOtpApi,
-  superAdminGoogleLogin as superAdminGoogleLoginApi,
-} from "../services/authService";
+import { getMyBusiness } from "../services/businessService";
+import useAuth from "../hooks/useAuth";
 
-import { STORAGE_KEYS } from "../utils/constants";
+export const BusinessContext = createContext(null);
 
-export const AuthContext = createContext(null);
+export function BusinessProvider({ children }) {
+  const { user, loading: authLoading } = useAuth();
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [business, setBusiness] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const saveSession = useCallback((data) => {
-    if (!data?.token) {
-      throw new Error("Authentication response did not contain a token.");
+  const fetchBusiness = useCallback(async () => {
+    if (!user || user.role !== "business") {
+      setBusiness(null);
+      setError("");
+      setLoading(false);
+      return null;
     }
 
-    localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
-    setUser(data.user || null);
+    setLoading(true);
+    setError("");
 
-    return data;
-  }, []);
+    try {
+      const response = await getMyBusiness();
+      const data = response?.data?.business || response?.business || null;
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    setUser(null);
-  }, []);
+      if (!data) {
+        throw new Error("Business information was not returned.");
+      }
+
+      setBusiness(data);
+      return data;
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to load business information.",
+      );
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
-    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    if (authLoading) return;
 
-    if (!token) {
+    if (!user || user.role !== "business") {
+      setBusiness(null);
+      setError("");
       setLoading(false);
-      return undefined;
+      return;
     }
 
-    let mounted = true;
+    fetchBusiness();
+  }, [authLoading, user, fetchBusiness]);
 
-    me()
-      .then((response) => {
-        if (mounted) {
-          setUser(response.data?.user || null);
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          localStorage.removeItem(STORAGE_KEYS.TOKEN);
-          setUser(null);
-        }
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
+  const updateBusinessState = useCallback((updatedBusiness) => {
+    setBusiness(updatedBusiness || null);
+    setError("");
   }, []);
 
-  // Existing admin password login.
-  const adminLogin = useCallback(
-    async (data) => {
-      const response = await adminLoginApi(data);
-      const responseData = response.data;
-
-      if (!responseData?.token || responseData?.user?.role !== "admin") {
-        throw new Error("This account does not have admin access.");
-      }
-
-      return saveSession(responseData);
-    },
-    [saveSession],
-  );
-
-  // Business email OTP.
-  const sendEmailOtp = useCallback(async (email, purpose = "login") => {
-    const response = await sendEmailOtpApi({
-      email: String(email || "")
-        .trim()
-        .toLowerCase(),
-      purpose,
-    });
-
-    return response.data;
+  const clearBusiness = useCallback(() => {
+    setBusiness(null);
+    setError("");
   }, []);
-
-  const verifyEmailOtp = useCallback(async ({ email, otp }) => {
-    const response = await verifyEmailOtpApi({
-      email: String(email || "")
-        .trim()
-        .toLowerCase(),
-      otp: String(otp || "").trim(),
-    });
-
-    return response.data;
-  }, []);
-
-  const completeBusinessRegistration = useCallback(async (data) => {
-    const response = await completeBusinessRegistrationApi(data);
-    return response.data;
-  }, []);
-
-  const googleLogin = useCallback(
-    async (credential) => {
-      const response = await googleLoginApi({ credential });
-      const responseData = response.data;
-
-      if (responseData?.token && responseData?.user) {
-        return saveSession(responseData);
-      }
-
-      return responseData;
-    },
-    [saveSession],
-  );
-
-  // Super Admin email OTP.
-  const sendSuperAdminEmailOtp = useCallback(async (email) => {
-    const response = await sendSuperAdminEmailOtpApi({
-      email: String(email || "")
-        .trim()
-        .toLowerCase(),
-    });
-
-    return response.data;
-  }, []);
-
-  const verifySuperAdminEmailOtp = useCallback(
-    async ({ email, otp }) => {
-      const response = await verifySuperAdminEmailOtpApi({
-        email: String(email || "")
-          .trim()
-          .toLowerCase(),
-        otp: String(otp || "").trim(),
-      });
-
-      const responseData = response.data;
-
-      if (
-        !responseData?.token ||
-        responseData?.user?.role !== "admin" ||
-        responseData?.user?.superAdmin !== true
-      ) {
-        throw new Error(
-          "The server did not return an authorized Super Admin session.",
-        );
-      }
-
-      return saveSession(responseData);
-    },
-    [saveSession],
-  );
-
-  // Super Admin Google login.
-  const superAdminGoogleLogin = useCallback(
-    async (credential) => {
-      const response = await superAdminGoogleLoginApi({ credential });
-      const responseData = response.data;
-
-      if (
-        !responseData?.token ||
-        responseData?.user?.role !== "admin" ||
-        responseData?.user?.superAdmin !== true
-      ) {
-        throw new Error(
-          "The server did not return an authorized Super Admin session.",
-        );
-      }
-
-      return saveSession(responseData);
-    },
-    [saveSession],
-  );
 
   const value = useMemo(
     () => ({
-      user,
-      loading,
-      isAuthenticated: Boolean(user),
-      adminLogin,
-      sendEmailOtp,
-      verifyEmailOtp,
-      completeBusinessRegistration,
-      googleLogin,
-      sendSuperAdminEmailOtp,
-      verifySuperAdminEmailOtp,
-      superAdminGoogleLogin,
-      logout,
+      business,
+      setBusiness: updateBusinessState,
+      fetchBusiness,
+      clearBusiness,
+      loading: authLoading || loading,
+      error,
     }),
     [
-      user,
+      business,
+      updateBusinessState,
+      fetchBusiness,
+      clearBusiness,
+      authLoading,
       loading,
-      adminLogin,
-      sendEmailOtp,
-      verifyEmailOtp,
-      completeBusinessRegistration,
-      googleLogin,
-      sendSuperAdminEmailOtp,
-      verifySuperAdminEmailOtp,
-      superAdminGoogleLogin,
-      logout,
+      error,
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <BusinessContext.Provider value={value}>
+      {children}
+    </BusinessContext.Provider>
+  );
 }
 
-export default AuthProvider;
+export default BusinessProvider;
