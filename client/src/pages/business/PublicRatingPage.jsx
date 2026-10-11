@@ -1,23 +1,10 @@
+
 import { useBusiness } from "../../hooks/useBusiness";
 import PublicPageSettings from "../../components/business/PublicPageSettings";
-import { Alert, Box, CircularProgress, Typography } from "@mui/material";
+import { Alert, Box, Typography } from "@mui/material";
 
 export default function PublicRatingPage() {
   const { business, loading, error } = useBusiness();
-
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          minHeight: "45vh",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
@@ -60,7 +47,7 @@ export default function PublicRatingPage() {
         </Alert>
       )}
 
-      {!business && !error && (
+      {!loading && !business && !error && (
         <Alert
           severity="info"
           sx={{
