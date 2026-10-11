@@ -104,7 +104,7 @@ export default function Navbar() {
               </Box>
             </Box>
 
-            {/* Glyrus name — exactly centered */}
+            {/* Glyrus name — centered, hidden on mobile */}
             <Box
               component={Link}
               to={user ? dashboardPath : "/"}
@@ -113,7 +113,8 @@ export default function Navbar() {
                 left: "50%",
                 top: "50%",
                 transform: "translate(-50%, -50%)",
-                display: "flex",
+                display: { xs: "none", sm: "flex" },
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
                 textDecoration: "none",
@@ -124,9 +125,8 @@ export default function Navbar() {
                 src="/name_logo.png"
                 alt="Glyrus"
                 sx={{
-                  width: { xs: 75, sm: 115, md: 140 },
-                  maxWidth: { xs: 85, sm: 150 },
-                  maxHeight: { xs: 28, sm: 40 },
+                  width: { sm: 145, md: 175 },
+                  maxHeight: 48,
                   objectFit: "contain",
                 }}
               />

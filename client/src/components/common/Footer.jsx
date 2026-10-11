@@ -13,6 +13,9 @@ import InstagramIcon from "@mui/icons-material/Instagram";
 import FacebookIcon from "@mui/icons-material/Facebook";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import XIcon from "@mui/icons-material/X";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -40,11 +43,32 @@ export default function Footer() {
     },
   ];
 
+  const features = [
+    {
+      icon: <AutoAwesomeRoundedIcon />,
+      title: "AI-Powered Insights",
+      description:
+        "Understand customer feedback and discover opportunities to improve your service.",
+    },
+    {
+      icon: <StarRoundedIcon />,
+      title: "Google Reviews",
+      description:
+        "Help customers access your Google review page and share genuine experiences.",
+    },
+    {
+      icon: <TrendingUpRoundedIcon />,
+      title: "Build Trust",
+      description:
+        "Strengthen your online reputation and build customer confidence.",
+    },
+  ];
+
   return (
     <Box
       component="footer"
       sx={{
-        mt: { xs: 3, sm: 5 },
+        mt: { xs: 2, sm: 3 },
         position: "relative",
         overflow: "hidden",
         borderTop: "1px solid #E8ECF4",
@@ -53,8 +77,8 @@ export default function Footer() {
           content: '""',
           position: "absolute",
           top: 0,
-          left: "20%",
-          width: "60%",
+          left: "25%",
+          width: "50%",
           height: "2px",
           background:
             "linear-gradient(90deg, transparent, #5277F5, transparent)",
@@ -64,56 +88,154 @@ export default function Footer() {
       <Container
         maxWidth="lg"
         sx={{
-          px: { xs: 1, sm: 2, md: 0 },
+          px: { xs: 1.5, sm: 2.5 },
           position: "relative",
         }}
       >
-        {/* Main footer */}
+        {/* Compact platform introduction */}
+        <Box
+          sx={{
+            pt: { xs: 2, sm: 2.5 },
+            pb: { xs: 1.5, sm: 2 },
+            textAlign: "center",
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: { xs: 17, sm: 21 },
+              fontWeight: 850,
+              letterSpacing: "-0.5px",
+              lineHeight: 1.4,
+              color: "#17233F",
+            }}
+          >
+            Grow Your Reputation with{" "}
+            <Box component="span" sx={{ color: "#5277F5" }}>
+              TapReview
+            </Box>
+          </Typography>
+
+          <Typography
+            sx={{
+              mt: 0.7,
+              mx: "auto",
+              maxWidth: 680,
+              color: "#667085",
+              fontSize: { xs: 11, sm: 12 },
+              lineHeight: 1.7,
+            }}
+          >
+            TapReview is an AI-powered Google review and reputation platform
+            that helps businesses simplify review collection, understand
+            customer feedback, improve service, and build a stronger online
+            presence.
+          </Typography>
+        </Box>
+
+        {/* Small feature cards */}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1}
+          sx={{ pb: { xs: 2, sm: 2.5 } }}
+        >
+          {features.map((feature) => (
+            <Box
+              key={feature.title}
+              sx={{
+                flex: 1,
+                display: "flex",
+                alignItems: { xs: "center", sm: "flex-start" },
+                gap: 1.2,
+                p: { xs: 1.2, sm: 1.4 },
+                border: "1px solid #E8ECF4",
+                borderRadius: 2.5,
+                backgroundColor: "#FFFFFF",
+                textAlign: { xs: "left", sm: "left" },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  flexShrink: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  borderRadius: 2,
+                  color: "#5277F5",
+                  backgroundColor: "#EEF2FF",
+                  "& svg": { fontSize: 19 },
+                }}
+              >
+                {feature.icon}
+              </Box>
+
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: 12,
+                    color: "#17233F",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {feature.title}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    mt: 0.4,
+                    color: "#718096",
+                    fontSize: 10.5,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {feature.description}
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+
+        <Divider sx={{ borderColor: "#E8ECF4" }} />
+
+        {/* Brand and social links */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems="center"
-          spacing={{ xs: 1, sm: 1.5 }}
-          sx={{ py: { xs: 2.5, sm: 3 } }}
+          spacing={{ xs: 1.2, sm: 2 }}
+          sx={{ py: { xs: 1.5, sm: 2 } }}
         >
-          {/* TapReview logo and name */}
           <Stack
             component={Link}
             to="/"
             direction="row"
             alignItems="center"
-            spacing={{ xs: 0.5, sm: -0.2 }}
+            spacing={0.7}
             aria-label="TapReview home"
-            sx={{
-              textDecoration: "none",
-              minWidth: 0,
-              transition: "transform 0.2s ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-              },
-            }}
+            sx={{ textDecoration: "none", minWidth: 0 }}
           >
             <Box
               component="img"
               src="/glyrus_round_logo.png"
-              alt="Glyrus logo"
+              alt="TapReview logo"
               sx={{
                 display: "block",
-                width: { xs: 48, sm: 58, md: 66 },
-                height: { xs: 48, sm: 58, md: 66 },
+                width: { xs: 38, sm: 44 },
+                height: { xs: 38, sm: 44 },
                 flexShrink: 0,
                 objectFit: "contain",
               }}
             />
 
-            <Box sx={{ minWidth: 0 }}>
+            <Box>
               <Typography
                 sx={{
                   color: "#17233F",
-                  fontSize: { xs: 19, sm: 23 },
+                  fontSize: { xs: 17, sm: 20 },
                   fontWeight: 900,
                   lineHeight: 1.15,
-                  letterSpacing: "-0.8px",
+                  letterSpacing: "-0.6px",
                   whiteSpace: "nowrap",
                 }}
               >
@@ -122,15 +244,24 @@ export default function Footer() {
                   Review
                 </Box>
               </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.2,
+                  color: "#7B869A",
+                  fontSize: 9,
+                }}
+              >
+                Smarter customer feedback
+              </Typography>
             </Box>
           </Stack>
 
-          {/* Social links */}
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="center"
-            spacing={{ xs: 0.5, sm: 1 }}
+            spacing={0.7}
           >
             {socialLinks.map((social) => (
               <Tooltip key={social.label} title={social.label} arrow>
@@ -142,19 +273,17 @@ export default function Footer() {
                   aria-label={social.label}
                   size="small"
                   sx={{
-                    width: { xs: 34, sm: 38 },
-                    height: { xs: 34, sm: 38 },
+                    width: 32,
+                    height: 32,
                     color: "#69758D",
                     border: "1px solid #E5EAF3",
                     backgroundColor: "#FFFFFF",
-                    borderRadius: "11px",
-                    transition: "all 0.22s ease",
+                    borderRadius: 2.5,
+                    "& svg": { fontSize: 18 },
                     "&:hover": {
                       color: "#FFFFFF",
                       backgroundColor: "#5277F5",
                       borderColor: "#5277F5",
-                      transform: "translateY(-3px)",
-                      boxShadow: "0 5px 12px rgba(82,119,245,0.2)",
                     },
                   }}
                 >
@@ -167,21 +296,21 @@ export default function Footer() {
 
         <Divider sx={{ borderColor: "#E8ECF4" }} />
 
-        {/* Copyright and Glyrus branding */}
+        {/* Compact bottom bar */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           justifyContent="space-between"
           alignItems="center"
-          spacing={{ xs: 1.2, sm: 2 }}
+          spacing={0.8}
           sx={{
-            py: { xs: 1.8, sm: 2 },
+            py: { xs: 1.2, sm: 1.5 },
             textAlign: "center",
           }}
         >
           <Typography
             sx={{
               color: "#7B869A",
-              fontSize: { xs: 10, sm: 11 },
+              fontSize: 10,
               lineHeight: 1.6,
             }}
           >
@@ -196,15 +325,10 @@ export default function Footer() {
             direction="row"
             alignItems="center"
             justifyContent="center"
-            spacing={0.7}
-            sx={{
-              textDecoration: "none",
-              color: "#69758D",
-              transition: "opacity 0.2s ease",
-              "&:hover": { opacity: 0.75 },
-            }}
+            spacing={0.6}
+            sx={{ textDecoration: "none", color: "#69758D" }}
           >
-            <Typography component="span" sx={{ fontSize: { xs: 10, sm: 11 } }}>
+            <Typography component="span" sx={{ fontSize: 10 }}>
               Powered by
             </Typography>
 
@@ -214,8 +338,8 @@ export default function Footer() {
               alt="Glyrus"
               sx={{
                 display: "block",
-                width: { xs: 48, sm: 58 },
-                maxHeight: 22,
+                width: { xs: 45, sm: 52 },
+                maxHeight: 19,
                 objectFit: "contain",
               }}
             />
