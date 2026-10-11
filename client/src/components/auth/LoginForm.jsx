@@ -306,100 +306,92 @@ export default function LoginForm() {
 
     let cancelled = false;
     let resizeObserver;
-    let retryTimer;
     let resizeTimer;
+    let loadTimeout;
+
+    const renderGoogleButton = () => {
+      const container = googleButtonRef.current;
+
+      if (cancelled || !container || !window.google?.accounts?.id) {
+        return;
+      }
+
+      const width = Math.floor(container.getBoundingClientRect().width);
+      if (width < 100) return;
+
+      // Avoid rebuilding the button when its width has not changed.
+      if (container.dataset.googleWidth === String(width)) return;
+
+      container.innerHTML = "";
+      container.dataset.googleWidth = String(width);
+
+      window.google.accounts.id.renderButton(container, {
+        type: "standard",
+        theme: theme.palette.mode === "dark" ? "filled_black" : "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        logo_alignment: "left",
+        width: Math.min(width, 400),
+      });
+
+      setGoogleReady(true);
+    };
 
     const initializeGoogle = () => {
-      if (cancelled || !window.google?.accounts?.id) return false;
+      if (cancelled || !window.google?.accounts?.id) return;
 
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: (response) => {
-          handleGoogleCredential(response?.credential);
+          if (!cancelled) {
+            handleGoogleCredential(response?.credential);
+          }
         },
       });
 
-      const renderGoogleButton = () => {
-        if (cancelled || !googleButtonRef.current) return;
-
-        const container = googleButtonRef.current;
-        const width = Math.floor(container.getBoundingClientRect().width);
-
-        if (width < 100) return;
-
-        container.innerHTML = "";
-
-        window.google.accounts.id.renderButton(container, {
-          type: "standard",
-          theme: theme.palette.mode === "dark" ? "filled_black" : "outline",
-          size: "large",
-          text: "continue_with",
-          shape: "rectangular",
-          logo_alignment: "left",
-          width: Math.min(width, 400),
-        });
-
-        setGoogleReady(true);
-      };
-
       renderGoogleButton();
-
-      if (typeof ResizeObserver !== "undefined" && googleButtonRef.current) {
-        resizeObserver = new ResizeObserver(() => {
-          clearTimeout(resizeTimer);
-          resizeTimer = setTimeout(renderGoogleButton, 120);
-        });
-
-        resizeObserver.observe(googleButtonRef.current);
-      } else {
-        window.addEventListener("resize", renderGoogleButton);
-      }
-
-      return true;
     };
+
+    const existingScript = document.querySelector(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    );
 
     if (window.google?.accounts?.id) {
       initializeGoogle();
+    } else if (existingScript) {
+      existingScript.addEventListener("load", initializeGoogle);
+      loadTimeout = setTimeout(initializeGoogle, 1000);
     } else {
-      const existingScript = document.querySelector(
-        'script[src="https://accounts.google.com/gsi/client"]',
-      );
-
-      const script = existingScript || document.createElement("script");
-
-      const onLoad = () => {
-        if (!cancelled) initializeGoogle();
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogle;
+      script.onerror = () => {
+        if (!cancelled) {
+          setServerError(
+            "Google sign-in could not load. Please use email OTP.",
+          );
+        }
       };
+      document.head.appendChild(script);
+    }
 
-      if (!existingScript) {
-        script.src = "https://accounts.google.com/gsi/client";
-        script.async = true;
-        script.defer = true;
-        script.addEventListener("load", onLoad);
-        document.head.appendChild(script);
-      } else {
-        retryTimer = setInterval(() => {
-          if (initializeGoogle()) clearInterval(retryTimer);
-        }, 250);
-      }
-
-      if (!existingScript) {
-        retryTimer = setTimeout(() => {
-          if (!cancelled) {
-            setServerError(
-              "Google sign-in could not load. Please use email OTP.",
-            );
-          }
-        }, 12000);
-      }
+    if (typeof ResizeObserver !== "undefined" && googleButtonRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(renderGoogleButton, 150);
+      });
+      resizeObserver.observe(googleButtonRef.current);
     }
 
     return () => {
       cancelled = true;
-      clearTimeout(retryTimer);
       clearTimeout(resizeTimer);
+      clearTimeout(loadTimeout);
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", initializeGoogle);
+      existingScript?.removeEventListener("load", initializeGoogle);
     };
   }, [handleGoogleCredential, theme.palette.mode]);
 
