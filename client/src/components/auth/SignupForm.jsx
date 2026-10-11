@@ -472,7 +472,7 @@ export default function SignupForm() {
         <Stack
           alignItems="center"
           spacing={0}
-          sx={{ mb: { xs: 0.5, sm: 1.5 } }}
+          sx={{ mb: { xs: 0.5, sm: 1} }}
         >
           <Box
             component="img"
@@ -482,7 +482,7 @@ export default function SignupForm() {
               width: { xs: 60, sm: 100 },
               height: { xs: 60, sm: 100 },
               objectFit: "contain",
-              mb: "-6px",
+              mb: "-1px",
             }}
           />
 
@@ -492,7 +492,7 @@ export default function SignupForm() {
             alt="Glyrus"
             sx={{
               width: { xs: 165, sm: 255 },
-              maxWidth: "82%",
+              maxWidth: "80%",
               height: "auto",
               objectFit: "contain",
               mb: { xs: 0.75, sm: 1.5 },

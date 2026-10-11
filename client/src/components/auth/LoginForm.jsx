@@ -486,10 +486,10 @@ export default function LoginForm() {
           <Typography
             component="h1"
             sx={{
-              fontSize: { xs: 25, sm: 30 },
+              fontSize: { xs: 20, sm: 23 },
               fontWeight: 750,
               letterSpacing: "-0.8px",
-              lineHeight: 1.2,
+              lineHeight: 0.9,
               color: "text.primary",
               textAlign: "center",
               mt: 1,
