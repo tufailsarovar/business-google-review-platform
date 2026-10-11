@@ -10,7 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
@@ -26,6 +26,35 @@ import { STORAGE_KEYS } from "../../utils/constants";
 const MotionBox = motion(Box);
 const MotionButton = motion(Button);
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+const fieldStyles = {
+  "& .MuiInputLabel-root": {
+    fontSize: { xs: 13, sm: 14 },
+  },
+  "& .MuiOutlinedInput-root": {
+    minHeight: 48,
+    borderRadius: "12px",
+    bgcolor: "background.paper",
+    "& fieldset": {
+      borderColor: "rgba(148,163,184,0.45)",
+    },
+    "&:hover fieldset": {
+      borderColor: "primary.main",
+    },
+    "&.Mui-focused fieldset": {
+      borderWidth: 1.5,
+    },
+  },
+  "& .MuiInputBase-input": {
+    fontSize: { xs: 14, sm: 15 },
+    py: 1.5,
+    px: 1.75,
+  },
+  "& .MuiFormHelperText-root": {
+    mx: 0.5,
+    fontSize: 11,
+  },
+};
 
 export default function LoginForm() {
   const theme = useTheme();
@@ -115,8 +144,9 @@ export default function LoginForm() {
   );
 
   const handleSendOtp = async () => {
-    const normalizedEmail = email.trim().toLowerCase();
     clearMessages();
+
+    const normalizedEmail = email.trim().toLowerCase();
 
     if (!isEmail(normalizedEmail)) {
       setServerError("Enter a valid email address.");
@@ -254,11 +284,14 @@ export default function LoginForm() {
         );
 
         if (
-          /not found|not registered|registration required|no business|account does not exist/i.test(
+          /not found|not registered|register|registration required|no business|account does not exist/i.test(
             message,
           )
         ) {
-          redirectToSignupAfterAlert();
+          redirectToSignupAfterAlert({
+            email: email.trim().toLowerCase(),
+            googleCredential: credential,
+          });
         } else {
           setServerError(message);
         }
@@ -266,34 +299,24 @@ export default function LoginForm() {
         setLoadingAction("");
       }
     },
-    [googleLogin, navigateAfterLogin, redirectToSignupAfterAlert],
+    [email, googleLogin, navigateAfterLogin, redirectToSignupAfterAlert],
   );
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return undefined;
 
     let cancelled = false;
-    let script;
     let resizeObserver;
+    let retryTimer;
     let resizeTimer;
 
     const initializeGoogle = () => {
-      if (
-        cancelled ||
-        !googleButtonRef.current ||
-        !window.google?.accounts?.id
-      ) {
-        return;
-      }
+      if (cancelled || !window.google?.accounts?.id) return false;
 
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: (response) => {
-          if (response?.credential) {
-            handleGoogleCredential(response.credential);
-          } else {
-            setServerError("Google did not return a valid credential.");
-          }
+          handleGoogleCredential(response?.credential);
         },
       });
 
@@ -301,143 +324,132 @@ export default function LoginForm() {
         if (cancelled || !googleButtonRef.current) return;
 
         const container = googleButtonRef.current;
-        const availableWidth = Math.floor(
-          container.getBoundingClientRect().width,
-        );
+        const width = Math.floor(container.getBoundingClientRect().width);
 
-        if (availableWidth < 120) return;
+        if (width < 100) return;
 
         container.innerHTML = "";
 
         window.google.accounts.id.renderButton(container, {
+          type: "standard",
           theme: theme.palette.mode === "dark" ? "filled_black" : "outline",
           size: "large",
-          shape: "rectangular",
           text: "continue_with",
-          width: Math.max(120, Math.min(availableWidth, 400)),
+          shape: "rectangular",
           logo_alignment: "left",
+          width: Math.min(width, 400),
         });
 
         setGoogleReady(true);
       };
 
-      const scheduleRender = () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(renderGoogleButton, 100);
-      };
-
       renderGoogleButton();
 
-      if (typeof ResizeObserver !== "undefined") {
-        resizeObserver = new ResizeObserver(scheduleRender);
+      if (typeof ResizeObserver !== "undefined" && googleButtonRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(renderGoogleButton, 120);
+        });
+
         resizeObserver.observe(googleButtonRef.current);
+      } else {
+        window.addEventListener("resize", renderGoogleButton);
       }
+
+      return true;
     };
 
     if (window.google?.accounts?.id) {
       initializeGoogle();
     } else {
-      script = document.querySelector(
+      const existingScript = document.querySelector(
         'script[src="https://accounts.google.com/gsi/client"]',
       );
 
-      if (!script) {
-        script = document.createElement("script");
+      const script = existingScript || document.createElement("script");
+
+      const onLoad = () => {
+        if (!cancelled) initializeGoogle();
+      };
+
+      if (!existingScript) {
         script.src = "https://accounts.google.com/gsi/client";
         script.async = true;
         script.defer = true;
+        script.addEventListener("load", onLoad);
         document.head.appendChild(script);
+      } else {
+        retryTimer = setInterval(() => {
+          if (initializeGoogle()) clearInterval(retryTimer);
+        }, 250);
       }
 
-      script.addEventListener("load", initializeGoogle);
+      if (!existingScript) {
+        retryTimer = setTimeout(() => {
+          if (!cancelled) {
+            setServerError(
+              "Google sign-in could not load. Please use email OTP.",
+            );
+          }
+        }, 12000);
+      }
     }
 
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer);
       clearTimeout(resizeTimer);
       resizeObserver?.disconnect();
-      script?.removeEventListener("load", initializeGoogle);
+      window.removeEventListener("resize", initializeGoogle);
     };
   }, [handleGoogleCredential, theme.palette.mode]);
 
-  const fieldStyles = {
-    "& .MuiOutlinedInput-root": {
-      minHeight: { xs: 44, sm: 48 },
-      borderRadius: "7px",
-      backgroundColor: "background.paper",
-      "&:hover .MuiOutlinedInput-notchedOutline": {
-        borderColor: primaryColor,
-      },
-      "&.Mui-focused": {
-        boxShadow: `0 0 0 3px ${alpha(primaryColor, 0.08)}`,
-      },
-    },
-    "& .MuiInputBase-input": {
-      fontSize: { xs: "12px", sm: "14px" },
-      py: 1.2,
-    },
-    "& .MuiInputLabel-root": {
-      fontSize: { xs: "12px", sm: "14px" },
-    },
+  const toggleEmailLogin = () => {
+    clearMessages();
+    setShowEmailLogin((previous) => !previous);
+    setOtpSent(false);
+    setOtp("");
   };
 
-  const primaryButtonStyles = {
-    minHeight: { xs: 44, sm: 48 },
-    borderRadius: "7px",
+  const buttonStyles = {
+    minHeight: { xs: 46, sm: 50 },
+    borderRadius: "12px",
+    fontSize: { xs: 13, sm: 14 },
     fontWeight: 750,
-    fontSize: { xs: "12px", sm: "14px" },
     textTransform: "none",
-    boxShadow: `0 4px 12px ${alpha(primaryColor, 0.2)}`,
-    "&:hover": {
-      boxShadow: `0 6px 16px ${alpha(primaryColor, 0.28)}`,
-    },
+    px: { xs: 1.25, sm: 2 },
+    whiteSpace: "nowrap",
   };
 
   return (
     <MotionBox
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
       sx={{
         width: "100%",
-        maxWidth: 880,
-        minWidth: 0,
+        maxWidth: 520,
         mx: "auto",
-        p: { xs: 2, sm: 3.5, md: 5 },
-        borderRadius: { xs: "28px", sm: "34px" },
-        border: "1px solid",
-        borderColor: alpha(theme.palette.divider, 0.7),
-        backgroundColor: "background.paper",
-        boxShadow: `0 12px 40px ${alpha(theme.palette.common.black, 0.035)}`,
+        p: { xs: 2, sm: 3.5, md: 4 },
+        borderRadius: 0,
+        bgcolor: "transparent",
+        border: "none",
+        boxShadow: "none",
         boxSizing: "border-box",
         "& *, & *::before, & *::after": {
           boxSizing: "border-box",
         },
       }}
     >
-      <Stack spacing={{ xs: 1.5, sm: 2 }}>
-        {/* LOGOS */}
-        <Stack
-          alignItems="center"
-          spacing={0}
-          sx={{
-            m: 0,
-            p: 0,
-            gap: 0,
-            lineHeight: 0,
-          }}
-        >
+      <Stack spacing={{ xs: 2, sm: 2.5 }}>
+        <Stack alignItems="center" spacing={0}>
           <Box
             component="a"
             href="https://glyrus.com"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Glyrus home"
-            sx={{
-              mt: 0,
-              mb: "-22px",
-              lineHeight: 0,
-            }}
+            sx={{ display: "flex", justifyContent: "center" }}
           >
             <Box
               component="img"
@@ -445,25 +457,24 @@ export default function LoginForm() {
               alt="Glyrus logo"
               sx={{
                 display: "block",
-                width: { xs: 90, sm: 110, md: 125 },
-                height: { xs: 90, sm: 110, md: 125 },
+                width: { xs: 76, sm: 92 },
+                height: { xs: 76, sm: 92 },
                 objectFit: "contain",
-                m: 0,
-                p: 0,
               }}
             />
           </Box>
+
           <Box
             component="a"
             href="https://glyrus.com"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Glyrus home"
+            aria-label="Glyrus website"
             sx={{
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
-              mb: "-15px",
+              mt: -0.5,
+              mb: 1.25,
               lineHeight: 0,
             }}
           >
@@ -473,34 +484,24 @@ export default function LoginForm() {
               alt="Glyrus"
               sx={{
                 display: "block",
-                width: { xs: 205, sm: 245, md: 270 },
-                maxWidth: "90%",
-                height: { xs: 48, sm: 58, md: 64 },
+                width: { xs: 175, sm: 220 },
+                maxWidth: "85%",
+                height: "auto",
                 objectFit: "contain",
-                m: 0,
-                p: 0,
               }}
             />
           </Box>
-        </Stack>
 
-        {/* WELCOME HEADING */}
-        <Box
-          sx={{
-            textAlign: "center",
-            mt: 0,
-            mb: 0,
-            p: 0,
-          }}
-        >
           <Typography
+            component="h1"
             sx={{
-              fontSize: { xs: "20px", sm: "34px", md: "28px" },
-              fontWeight: 650,
-              letterSpacing: { xs: "-0.8px", sm: "-1px" },
+              fontSize: { xs: 25, sm: 30 },
+              fontWeight: 750,
+              letterSpacing: "-0.8px",
               lineHeight: 1.2,
               color: "text.primary",
-              m: 0,
+              textAlign: "center",
+              mt: 1,
             }}
           >
             Welcome Back
@@ -509,32 +510,29 @@ export default function LoginForm() {
           <Typography
             color="text.secondary"
             sx={{
-              mt: 0.5,
-              mb: 0,
-              fontSize: { xs: "12px", sm: "15px", md: "16px" },
-              lineHeight: 1.5,
+              mt: 0.75,
+              fontSize: { xs: 12.5, sm: 14 },
+              textAlign: "center",
+              lineHeight: 1.6,
+              maxWidth: 340,
             }}
           >
             Sign in to manage your TapReview business account.
           </Typography>
-        </Box>
+        </Stack>
 
         <AnimatePresence mode="wait">
           {serverError && (
             <MotionBox
               key="error"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
             >
               <Alert
                 severity="error"
-                sx={{
-                  borderRadius: "7px",
-                  py: 0,
-                  fontSize: "12px",
-                  "& .MuiAlert-message": { overflowWrap: "anywhere" },
-                }}
+                onClose={() => setServerError("")}
+                sx={{ borderRadius: "12px", fontSize: 13 }}
               >
                 {serverError}
               </Alert>
@@ -544,34 +542,14 @@ export default function LoginForm() {
           {notice && (
             <MotionBox
               key="notice"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
             >
               <Alert
-                severity="info"
-                sx={{
-                  borderRadius: "7px",
-                  py: 0,
-                  fontSize: "12px",
-                  "& .MuiAlert-message": { overflowWrap: "anywhere" },
-                }}
-                action={
-                  notice.includes("not registered") ? (
-                    <Button
-                      color="inherit"
-                      size="small"
-                      onClick={() => {
-                        if (redirectTimerRef.current) {
-                          clearTimeout(redirectTimerRef.current);
-                        }
-                        goToSignup();
-                      }}
-                    >
-                      Sign up
-                    </Button>
-                  ) : undefined
-                }
+                severity="success"
+                onClose={() => setNotice("")}
+                sx={{ borderRadius: "12px", fontSize: 13 }}
               >
                 {notice}
               </Alert>
@@ -579,336 +557,280 @@ export default function LoginForm() {
           )}
         </AnimatePresence>
 
-        {/* GOOGLE + EMAIL OTP BUTTONS */}
-        <Stack
-          direction="row"
-          spacing={{ xs: 1, sm: 2 }}
-          alignItems="stretch"
-          sx={{
-            width: "100%",
-            minWidth: 0,
-            "& > *": {
-              flex: "1 1 0",
-              minWidth: 0,
-              maxWidth: "100%",
-            },
-          }}
-        >
-          {GOOGLE_CLIENT_ID ? (
+        <Stack spacing={1.25}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+              gap: 1.25,
+              alignItems: "stretch",
+            }}
+          >
             <Box
               sx={{
-                flex: "1 1 0",
-                width: "50%",
                 minWidth: 0,
-                maxWidth: "100%",
-                height: { xs: 46, sm: 54 },
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                overflow: "hidden",
+                minHeight: { xs: 46, sm: 50 },
                 border: "1px solid",
-                borderColor: alpha(theme.palette.divider, 0.9),
-                borderRadius: "7px",
-                backgroundColor: "background.paper",
+                borderColor: "divider",
+                borderRadius: "12px",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                px: 0.75,
+                bgcolor: "background.paper",
                 "& iframe": {
                   maxWidth: "100% !important",
                 },
               }}
             >
-              <Box
-                ref={googleButtonRef}
-                sx={{
-                  width: "100%",
-                  minWidth: 0,
-                  maxWidth: "100%",
-                  height: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  "& > div": {
-                    width: "100% !important",
-                    maxWidth: "100% !important",
-                  },
-                  "& iframe": {
-                    maxWidth: "100% !important",
-                  },
-                }}
-              />
-              {!googleReady && (
-                <CircularProgress
-                  size={15}
-                  sx={{ ml: 0.5, flexShrink: 0 }}
-                  aria-label="Loading Google sign-in"
+              {!GOOGLE_CLIENT_ID ? (
+                <Typography
+                  color="text.secondary"
+                  sx={{ fontSize: 12, textAlign: "center" }}
+                >
+                  Google sign-in unavailable
+                </Typography>
+              ) : (
+                <Box
+                  ref={googleButtonRef}
+                  sx={{
+                    width: "100%",
+                    minWidth: 0,
+                    display: "flex",
+                    justifyContent: "center",
+                    "& > div": { maxWidth: "100%" },
+                  }}
                 />
               )}
             </Box>
-          ) : (
-            <Button
+
+            <MotionButton
               variant="outlined"
-              fullWidth
-              disabled
+              onClick={toggleEmailLogin}
+              disabled={busy}
+              startIcon={<EmailRoundedIcon />}
+              endIcon={showEmailLogin ? null : <ArrowForwardRoundedIcon />}
+              whileTap={{ scale: 0.98 }}
               sx={{
-                minWidth: 0,
-                height: { xs: 46, sm: 54 },
-                borderRadius: "7px",
-                fontSize: { xs: "10px", sm: "13px" },
-                textTransform: "none",
+                ...buttonStyles,
+                borderColor: alpha(primaryColor, 0.45),
+                color: "primary.main",
+                "&:hover": {
+                  borderColor: "primary.main",
+                  bgcolor: alpha(primaryColor, 0.045),
+                },
               }}
             >
-              Google unavailable
-            </Button>
-          )}
+              {showEmailLogin ? "Hide Email OTP" : "Continue with Email"}
+            </MotionButton>
+          </Box>
 
-          <MotionButton
-            type="button"
-            fullWidth
-            variant="outlined"
-            disabled={busy}
-            onClick={() => {
-              setShowEmailLogin((previous) => !previous);
-              clearMessages();
-            }}
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            startIcon={<EmailRoundedIcon />}
-            sx={{
-              flex: "1 1 0",
-              minWidth: 0,
-              maxWidth: "100%",
-              minHeight: { xs: 46, sm: 54 },
-              px: { xs: 0.5, sm: 1.5 },
-              borderRadius: "7px",
-              borderWidth: 1,
-              fontSize: { xs: "11px", sm: "14px" },
-              fontWeight: 750,
-              textTransform: "none",
-              whiteSpace: "nowrap",
-              "&:hover": {
-                borderWidth: 1,
-                backgroundColor: alpha(primaryColor, 0.04),
-              },
-              "& .MuiButton-startIcon": {
-                mr: { xs: 0.4, sm: 0.8 },
-                ml: 0,
-                flexShrink: 0,
-              },
-              "& .MuiButton-startIcon > *": {
-                fontSize: { xs: 16, sm: 20 },
-              },
-            }}
-          >
-            {showEmailLogin ? "Hide Email OTP" : "Email OTP"}
-          </MotionButton>
+          {GOOGLE_CLIENT_ID && !googleReady && !busy && (
+            <Typography
+              color="text.secondary"
+              sx={{ fontSize: 11, textAlign: "center" }}
+            >
+              Loading Google sign-in…
+            </Typography>
+          )}
         </Stack>
 
         <AnimatePresence initial={false}>
           {showEmailLogin && (
             <MotionBox
               key="email-login"
-              initial={{ opacity: 0, height: 0, y: 6 }}
+              initial={{ opacity: 0, height: 0, y: -6 }}
               animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.22 }}
-              sx={{ overflow: "hidden", minWidth: 0 }}
+              exit={{ opacity: 0, height: 0, y: -6 }}
+              sx={{ overflow: "hidden" }}
             >
-              <Box
+              <Stack
+                spacing={1.5}
                 sx={{
-                  p: { xs: 1.5, sm: 2.5 },
-                  borderRadius: "7px",
+                  pt: 1.5,
+                  p: { xs: 1.5, sm: 2 },
                   border: "1px solid",
-                  borderColor: alpha(primaryColor, 0.16),
-                  backgroundColor: alpha(primaryColor, 0.025),
+                  borderColor: "divider",
+                  borderRadius: "14px",
+                  bgcolor: alpha(primaryColor, 0.025),
                 }}
               >
-                <Stack spacing={{ xs: 1.4, sm: 1.8 }}>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Box
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        flexShrink: 0,
-                        display: "grid",
-                        placeItems: "center",
-                        borderRadius: "7px",
-                        color: "primary.main",
-                        backgroundColor: alpha(primaryColor, 0.09),
-                      }}
-                    >
-                      {otpSent ? (
-                        <CheckCircleRoundedIcon />
-                      ) : (
-                        <EmailRoundedIcon />
-                      )}
-                    </Box>
+                <Typography
+                  sx={{
+                    fontSize: 14,
+                    fontWeight: 750,
+                    color: "text.primary",
+                  }}
+                >
+                  Sign in with email OTP
+                </Typography>
 
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography
-                        sx={{
-                          fontWeight: 800,
-                          fontSize: { xs: "12px", sm: "14px" },
-                        }}
-                      >
-                        {otpSent ? "Verify your email" : "Email verification"}
-                      </Typography>
-                      <Typography
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: "10px", sm: "12px" } }}
-                      >
-                        {otpSent
-                          ? "Enter the 6-digit code sent to your inbox."
-                          : "We'll send you a one-time login code."}
-                      </Typography>
-                    </Box>
-                  </Stack>
+                <TextField
+                  fullWidth
+                  required
+                  type="email"
+                  label="Email address"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  value={email}
+                  disabled={busy || otpSent}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    clearMessages();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !otpSent) {
+                      event.preventDefault();
+                      handleSendOtp();
+                    }
+                  }}
+                  sx={fieldStyles}
+                />
 
-                  <TextField
-                    required
+                {!otpSent ? (
+                  <MotionButton
                     fullWidth
-                    label="Business email address"
-                    placeholder="you@company.com"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => {
-                      setEmail(event.target.value);
-                      setOtpSent(false);
-                      setOtp("");
-                      clearMessages();
+                    variant="contained"
+                    disabled={busy}
+                    onClick={handleSendOtp}
+                    whileTap={{ scale: 0.98 }}
+                    sx={{
+                      ...buttonStyles,
+                      minHeight: 52,
+                      borderRadius: "12px",
+                      fontSize: 14,
+                      fontWeight: 750,
+                      boxShadow: "none",
                     }}
-                    disabled={busy || otpSent}
-                    sx={fieldStyles}
-                  />
-
-                  <AnimatePresence initial={false}>
-                    {otpSent && (
-                      <MotionBox
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                      >
-                        <TextField
-                          required
-                          fullWidth
-                          label="Six-digit verification code"
-                          placeholder="000000"
-                          value={otp}
-                          onChange={(event) =>
-                            setOtp(
-                              event.target.value.replace(/\D/g, "").slice(0, 6),
-                            )
-                          }
-                          inputProps={{
-                            inputMode: "numeric",
-                            maxLength: 6,
-                            autoComplete: "one-time-code",
-                          }}
-                          disabled={busy}
-                          sx={{
-                            ...fieldStyles,
-                            "& input": {
-                              letterSpacing: "0.3em",
-                              fontWeight: 800,
-                            },
-                          }}
-                        />
-                      </MotionBox>
+                  >
+                    {loadingAction === "send-otp" ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      "Send verification code"
                     )}
-                  </AnimatePresence>
-
-                  {!otpSent ? (
-                    <MotionButton
-                      type="button"
-                      variant="contained"
+                  </MotionButton>
+                ) : (
+                  <>
+                    <TextField
                       fullWidth
+                      required
+                      label="6-digit verification code"
+                      placeholder="000000"
+                      value={otp}
                       disabled={busy}
-                      onClick={handleSendOtp}
+                      inputProps={{
+                        inputMode: "numeric",
+                        maxLength: 6,
+                        autoComplete: "one-time-code",
+                      }}
+                      onChange={(event) => {
+                        setOtp(
+                          event.target.value.replace(/\D/g, "").slice(0, 6),
+                        );
+                        clearMessages();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          handleVerifyOtp();
+                        }
+                      }}
+                      sx={fieldStyles}
+                    />
+
+                    <MotionButton
+                      fullWidth
+                      variant="contained"
+                      disabled={busy || !/^\d{6}$/.test(otp)}
+                      onClick={handleVerifyOtp}
                       startIcon={
-                        loadingAction === "send-otp" ? (
-                          <CircularProgress size={16} color="inherit" />
+                        loadingAction === "verify-otp" ? (
+                          <CircularProgress size={18} color="inherit" />
                         ) : (
-                          <EmailRoundedIcon />
+                          <CheckCircleRoundedIcon />
                         )
                       }
-                      whileTap={{ scale: 0.99 }}
-                      sx={primaryButtonStyles}
+                      whileTap={{ scale: 0.98 }}
+                      sx={buttonStyles}
                     >
-                      {loadingAction === "send-otp"
-                        ? "Sending code..."
-                        : "Send Login Code"}
+                      {loadingAction === "verify-otp"
+                        ? "Verifying..."
+                        : "Verify and sign in"}
                     </MotionButton>
-                  ) : (
-                    <Stack spacing={0.5}>
-                      <MotionButton
-                        type="button"
-                        variant="contained"
-                        fullWidth
-                        disabled={busy || otp.length !== 6}
-                        onClick={handleVerifyOtp}
-                        startIcon={
-                          loadingAction === "verify-otp" ? (
-                            <CircularProgress size={16} color="inherit" />
-                          ) : (
-                            <CheckCircleRoundedIcon />
-                          )
-                        }
-                        whileTap={{ scale: 0.99 }}
-                        sx={primaryButtonStyles}
-                      >
-                        {loadingAction === "verify-otp"
-                          ? "Verifying..."
-                          : "Verify & Sign In"}
-                      </MotionButton>
 
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      flexWrap="wrap"
+                      gap={1}
+                    >
                       <Button
-                        type="button"
+                        size="small"
                         disabled={busy}
                         onClick={handleSendOtp}
                         sx={{
-                          minHeight: 30,
-                          fontSize: "11px",
                           textTransform: "none",
+                          fontSize: 12,
                           fontWeight: 700,
                         }}
                       >
-                        Resend verification code
+                        Resend code
+                      </Button>
+
+                      <Button
+                        size="small"
+                        disabled={busy}
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtp("");
+                          clearMessages();
+                        }}
+                        sx={{
+                          textTransform: "none",
+                          fontSize: 12,
+                        }}
+                      >
+                        Change email
                       </Button>
                     </Stack>
-                  )}
-
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setShowEmailLogin(false);
-                      setOtpSent(false);
-                      setOtp("");
-                      clearMessages();
-                    }}
-                    sx={{
-                      minHeight: 28,
-                      fontSize: "11px",
-                      textTransform: "none",
-                      color: "text.secondary",
-                    }}
-                  >
-                    Cancel email sign-in
-                  </Button>
-                </Stack>
-              </Box>
+                  </>
+                )}
+              </Stack>
             </MotionBox>
           )}
         </AnimatePresence>
 
-        <Divider>
+        {busy && (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ py: 0.25 }}
+          >
+            <CircularProgress size={15} />
+            <Typography color="text.secondary" sx={{ fontSize: 12 }}>
+              {loadingAction === "google-login"
+                ? "Signing in with Google..."
+                : loadingAction === "send-otp"
+                  ? "Sending verification code..."
+                  : loadingAction === "verify-otp"
+                    ? "Verifying your code..."
+                    : "Please wait..."}
+            </Typography>
+          </Stack>
+        )}
+
+        <Divider sx={{ my: 0.25 }}>
           <Typography
+            color="text.secondary"
             sx={{
-              px: 0.75,
-              whiteSpace: "nowrap",
-              fontSize: { xs: "9px", sm: "11px" },
+              px: 1,
+              fontSize: { xs: 9, sm: 10 },
               fontWeight: 800,
-              letterSpacing: { xs: 0.45, sm: 0.9 },
-              color: "text.secondary",
+              letterSpacing: 0.8,
             }}
           >
             NEW TO TAPREVIEW?
@@ -921,36 +843,28 @@ export default function LoginForm() {
           variant="outlined"
           fullWidth
           disabled={busy}
-          endIcon={<ArrowForwardRoundedIcon />}
           startIcon={<PersonAddAltRoundedIcon />}
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.99 }}
+          endIcon={<ArrowForwardRoundedIcon />}
+          whileTap={{ scale: 0.98 }}
           sx={{
-            minHeight: { xs: 46, sm: 54 },
-            px: { xs: 1, sm: 1.5 },
-            borderRadius: "7px",
-            borderWidth: 1,
-            fontWeight: 750,
-            fontSize: { xs: "11px", sm: "14px" },
-            textTransform: "none",
-            whiteSpace: "nowrap",
+            ...buttonStyles,
+            borderColor: alpha(primaryColor, 0.45),
             "&:hover": {
+              borderColor: "primary.main",
               borderWidth: 1,
-              backgroundColor: alpha(primaryColor, 0.04),
+              bgcolor: alpha(primaryColor, 0.04),
             },
           }}
         >
           Create Business Account
         </MotionButton>
 
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 0.5,
-            pt: 0.2,
-          }}
+        <Stack
+          direction="row"
+          justifyContent="center"
+          alignItems="center"
+          spacing={0.6}
+          sx={{ pt: 0.25 }}
         >
           <ShieldRoundedIcon
             sx={{ fontSize: 14, color: "success.main", flexShrink: 0 }}
@@ -958,22 +872,20 @@ export default function LoginForm() {
           <Typography
             color="text.secondary"
             sx={{
-              fontSize: { xs: "9px", sm: "12px" },
-              fontWeight: 500,
+              fontSize: { xs: 10, sm: 11 },
               textAlign: "center",
               lineHeight: 1.5,
             }}
           >
             Secure sign-in · Your account stays protected
           </Typography>
-        </Box>
+        </Stack>
 
         <Typography
           component="div"
           sx={{
-            pt: { xs: 0.5, sm: 0.8 },
             textAlign: "center",
-            fontSize: { xs: "10px", sm: "12px" },
+            fontSize: { xs: 10, sm: 11 },
             color: "text.secondary",
           }}
         >

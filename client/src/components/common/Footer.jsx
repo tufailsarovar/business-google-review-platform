@@ -244,16 +244,6 @@ export default function Footer() {
                   Review
                 </Box>
               </Typography>
-
-              <Typography
-                sx={{
-                  mt: 0.2,
-                  color: "#7B869A",
-                  fontSize: 9,
-                }}
-              >
-                Smarter customer feedback
-              </Typography>
             </Box>
           </Stack>
 

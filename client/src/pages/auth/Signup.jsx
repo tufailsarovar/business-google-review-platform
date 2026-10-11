@@ -1,4 +1,4 @@
-import { Box, Container, Paper } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import { motion } from "framer-motion";
 import SignupForm from "../../components/auth/SignupForm";
 
@@ -28,15 +28,7 @@ export default function Signup() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: { xs: 3, sm: 4 },
-              overflow: "hidden",
-            }}
-          >
-            <SignupForm />
-          </Paper>
+          <SignupForm />
         </MotionBox>
       </Container>
     </Box>

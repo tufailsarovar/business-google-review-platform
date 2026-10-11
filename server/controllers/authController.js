@@ -24,7 +24,9 @@ import SuperAdminOtp from "../models/SuperAdminOtp.js";
 ========================================================= */
 
 const normalizeEmail = (email) =>
-  String(email || "").trim().toLowerCase();
+  String(email || "")
+    .trim()
+    .toLowerCase();
 
 const hashValue = (value) =>
   crypto.createHash("sha256").update(String(value)).digest("hex");
@@ -187,7 +189,7 @@ export const sendEmailOtp = async (req, res, next) => {
         upsert: true,
         new: true,
         setDefaultsOnInsert: true,
-      }
+      },
     );
 
     try {
@@ -216,6 +218,7 @@ export const sendEmailOtp = async (req, res, next) => {
    VERIFY EMAIL OTP
 ========================================================= */
 
+
 export const verifyEmailOtp = async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body.email);
@@ -233,8 +236,7 @@ export const verifyEmailOtp = async (req, res, next) => {
     if (!record || record.expiresAt <= new Date()) {
       return res.status(400).json({
         success: false,
-        message:
-          "Verification code is invalid or expired. Request a new one.",
+        message: "Verification code is invalid or expired. Request a new one.",
       });
     }
 
@@ -258,9 +260,12 @@ export const verifyEmailOtp = async (req, res, next) => {
       });
     }
 
+    // Existing business: log in instead of redirecting to signup.
     const business = await Business.findOne({ email });
 
     if (business) {
+      await EmailOtp.deleteOne({ _id: record._id });
+
       if (!checkBusinessAccess(business, res)) return;
 
       if (!business.isEmailVerified) {
@@ -268,11 +273,10 @@ export const verifyEmailOtp = async (req, res, next) => {
         await business.save();
       }
 
-      await EmailOtp.deleteOne({ _id: record._id });
-
       return createBusinessSession(business, res);
     }
 
+    // New email: continue the registration flow.
     const settings = await PlatformSettings.findOne();
 
     if (settings?.allowRegistration === false) {
@@ -305,6 +309,7 @@ export const verifyEmailOtp = async (req, res, next) => {
   }
 };
 
+
 /* =========================================================
    COMPLETE BUSINESS REGISTRATION
 ========================================================= */
@@ -316,13 +321,9 @@ export const completeBusinessRegistration = async (req, res, next) => {
     const businessName = String(req.body.businessName || "").trim();
     const phone = String(req.body.phone || req.body.mobile || "").trim();
 
-    const verificationToken = String(
-      req.body.verificationToken || ""
-    ).trim();
+    const verificationToken = String(req.body.verificationToken || "").trim();
 
-    const googleCredential = String(
-      req.body.googleCredential || ""
-    ).trim();
+    const googleCredential = String(req.body.googleCredential || "").trim();
 
     if (!email || !name || !businessName || !phone) {
       return res.status(400).json({
@@ -374,8 +375,8 @@ export const completeBusinessRegistration = async (req, res, next) => {
 
       const googleResponse = await fetch(
         `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
-          googleCredential
-        )}`
+          googleCredential,
+        )}`,
       );
 
       if (!googleResponse.ok) {
@@ -457,7 +458,7 @@ export const completeBusinessRegistration = async (req, res, next) => {
     } catch (emailError) {
       console.error(
         "Registration confirmation email failed:",
-        emailError.message
+        emailError.message,
       );
     }
 
@@ -497,7 +498,7 @@ export const completeBusinessRegistration = async (req, res, next) => {
 export const googleLogin = async (req, res, next) => {
   try {
     const credential = String(
-      req.body.credential || req.body.idToken || ""
+      req.body.credential || req.body.idToken || "",
     ).trim();
 
     if (!credential) {
@@ -518,8 +519,8 @@ export const googleLogin = async (req, res, next) => {
 
     const googleResponse = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
-        credential
-      )}`
+        credential,
+      )}`,
     );
 
     if (!googleResponse.ok) {
@@ -986,7 +987,7 @@ export const sendSuperAdminEmailOtp = async (req, res, next) => {
         upsert: true,
         new: true,
         setDefaultsOnInsert: true,
-      }
+      },
     );
 
     try {
@@ -994,10 +995,7 @@ export const sendSuperAdminEmailOtp = async (req, res, next) => {
     } catch (emailError) {
       await SuperAdminOtp.deleteOne({ email });
 
-      console.error(
-        "Super Admin OTP delivery failed:",
-        emailError.message
-      );
+      console.error("Super Admin OTP delivery failed:", emailError.message);
 
       return res.status(500).json({
         success: false,
@@ -1090,7 +1088,7 @@ export const verifySuperAdminEmailOtp = async (req, res, next) => {
 export const superAdminGoogleLogin = async (req, res, next) => {
   try {
     const credential = String(
-      req.body.credential || req.body.idToken || ""
+      req.body.credential || req.body.idToken || "",
     ).trim();
 
     if (!credential) {
@@ -1111,8 +1109,8 @@ export const superAdminGoogleLogin = async (req, res, next) => {
 
     const response = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(
-        credential
-      )}`
+        credential,
+      )}`,
     );
 
     if (!response.ok) {
@@ -1139,7 +1137,8 @@ export const superAdminGoogleLogin = async (req, res, next) => {
     if (!isAuthorizedSuperAdmin(email)) {
       return res.status(403).json({
         success: false,
-        message: "This Google account is not authorized for Super Admin access.",
+        message:
+          "This Google account is not authorized for Super Admin access.",
       });
     }
 
