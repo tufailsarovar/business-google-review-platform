@@ -16,6 +16,7 @@ import XIcon from "@mui/icons-material/X";
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -253,6 +254,30 @@ export default function Footer() {
             justifyContent="center"
             spacing={0.7}
           >
+            <Tooltip title="Super Admin Login" arrow>
+              <IconButton
+                component={Link}
+                to="/admin/login"
+                aria-label="Super Admin Login"
+                size="small"
+                sx={{
+                  width: 32,
+                  height: 32,
+                  color: "#69758D",
+                  border: "1px solid #E5EAF3",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 2.5,
+                  "& svg": { fontSize: 18 },
+                  "&:hover": {
+                    color: "#FFFFFF",
+                    backgroundColor: "#17233F",
+                    borderColor: "#17233F",
+                  },
+                }}
+              >
+                <AdminPanelSettingsRoundedIcon />
+              </IconButton>
+            </Tooltip>
             {socialLinks.map((social) => (
               <Tooltip key={social.label} title={social.label} arrow>
                 <IconButton
