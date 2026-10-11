@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useCallback,
@@ -6,99 +7,241 @@ import {
   useState,
 } from "react";
 
-import { getMyBusiness } from "../services/businessService";
-import useAuth from "../hooks/useAuth";
+import {
+  adminLogin as adminLoginApi,
+  me,
+  sendEmailOtp as sendEmailOtpApi,
+  verifyEmailOtp as verifyEmailOtpApi,
+  completeBusinessRegistration as completeBusinessRegistrationApi,
+  googleLogin as googleLoginApi,
+  sendSuperAdminEmailOtp as sendSuperAdminEmailOtpApi,
+  verifySuperAdminEmailOtp as verifySuperAdminEmailOtpApi,
+  superAdminGoogleLogin as superAdminGoogleLoginApi,
+} from "../services/authService";
 
-export const BusinessContext = createContext(null);
+import { STORAGE_KEYS } from "../utils/constants";
 
-export function BusinessProvider({ children }) {
-  const { user, loading: authLoading } = useAuth();
+export const AuthContext = createContext(null);
 
-  const [business, setBusiness] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const USER_STORAGE_KEY = "TapReview_user";
 
-  const fetchBusiness = useCallback(async () => {
-    if (!user || user.role !== "business") {
-      setBusiness(null);
-      setError("");
-      setLoading(false);
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem(USER_STORAGE_KEY);
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
       return null;
     }
+  });
 
-    setLoading(true);
-    setError("");
+  const [loading, setLoading] = useState(
+    () => Boolean(localStorage.getItem(STORAGE_KEYS.TOKEN))
+  );
 
-    try {
-      const response = await getMyBusiness();
-      const data = response?.data?.business || response?.business || null;
+  const saveUser = useCallback((nextUser) => {
+    if (nextUser) {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
+    } else {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    }
 
-      if (!data) {
-        throw new Error("Business information was not returned.");
+    setUser(nextUser || null);
+  }, []);
+
+  const saveSession = useCallback(
+    (data) => {
+      if (!data?.token) {
+        throw new Error("Authentication response did not contain a token.");
       }
 
-      setBusiness(data);
+      localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
+      saveUser(data.user || null);
+
       return data;
-    } catch (err) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Unable to load business information.",
-      );
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+    },
+    [saveUser]
+  );
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    setUser(null);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    if (authLoading) return;
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
 
-    if (!user || user.role !== "business") {
-      setBusiness(null);
-      setError("");
+    if (!token) {
       setLoading(false);
-      return;
+      return undefined;
     }
 
-    fetchBusiness();
-  }, [authLoading, user, fetchBusiness]);
+    let mounted = true;
 
-  const updateBusinessState = useCallback((updatedBusiness) => {
-    setBusiness(updatedBusiness || null);
-    setError("");
+    me()
+      .then((response) => {
+        if (mounted) {
+          saveUser(response.data?.user || null);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          localStorage.removeItem(STORAGE_KEYS.TOKEN);
+          localStorage.removeItem(USER_STORAGE_KEY);
+          setUser(null);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [saveUser]);
+
+  const adminLogin = useCallback(
+    async (data) => {
+      const response = await adminLoginApi(data);
+      const responseData = response.data;
+
+      if (!responseData?.token || responseData?.user?.role !== "admin") {
+        throw new Error("This account does not have admin access.");
+      }
+
+      return saveSession(responseData);
+    },
+    [saveSession]
+  );
+
+  const sendEmailOtp = useCallback(async (email, purpose = "login") => {
+    const response = await sendEmailOtpApi({
+      email: String(email || "").trim().toLowerCase(),
+      purpose,
+    });
+
+    return response.data;
   }, []);
 
-  const clearBusiness = useCallback(() => {
-    setBusiness(null);
-    setError("");
+  const verifyEmailOtp = useCallback(async ({ email, otp }) => {
+    const response = await verifyEmailOtpApi({
+      email: String(email || "").trim().toLowerCase(),
+      otp: String(otp || "").trim(),
+    });
+
+    return response.data;
   }, []);
+
+  const completeBusinessRegistration = useCallback(async (data) => {
+    const response = await completeBusinessRegistrationApi(data);
+    return response.data;
+  }, []);
+
+  const googleLogin = useCallback(
+    async (credential) => {
+      const response = await googleLoginApi({ credential });
+      const responseData = response.data;
+
+      if (responseData?.token && responseData?.user) {
+        return saveSession(responseData);
+      }
+
+      return responseData;
+    },
+    [saveSession]
+  );
+
+  const sendSuperAdminEmailOtp = useCallback(async (email) => {
+    const response = await sendSuperAdminEmailOtpApi({
+      email: String(email || "").trim().toLowerCase(),
+    });
+
+    return response.data;
+  }, []);
+
+  const verifySuperAdminEmailOtp = useCallback(
+    async ({ email, otp }) => {
+      const response = await verifySuperAdminEmailOtpApi({
+        email: String(email || "").trim().toLowerCase(),
+        otp: String(otp || "").trim(),
+      });
+
+      const responseData = response.data;
+
+      if (
+        !responseData?.token ||
+        responseData?.user?.role !== "admin" ||
+        responseData?.user?.superAdmin !== true
+      ) {
+        throw new Error(
+          "The server did not return an authorized Super Admin session."
+        );
+      }
+
+      return saveSession(responseData);
+    },
+    [saveSession]
+  );
+
+  const superAdminGoogleLogin = useCallback(
+    async (credential) => {
+      const response = await superAdminGoogleLoginApi({ credential });
+      const responseData = response.data;
+
+      if (
+        !responseData?.token ||
+        responseData?.user?.role !== "admin" ||
+        responseData?.user?.superAdmin !== true
+      ) {
+        throw new Error(
+          "The server did not return an authorized Super Admin session."
+        );
+      }
+
+      return saveSession(responseData);
+    },
+    [saveSession]
+  );
 
   const value = useMemo(
     () => ({
-      business,
-      setBusiness: updateBusinessState,
-      fetchBusiness,
-      clearBusiness,
-      loading: authLoading || loading,
-      error,
+      user,
+      loading,
+      isAuthenticated: Boolean(user),
+      adminLogin,
+      sendEmailOtp,
+      verifyEmailOtp,
+      completeBusinessRegistration,
+      googleLogin,
+      sendSuperAdminEmailOtp,
+      verifySuperAdminEmailOtp,
+      superAdminGoogleLogin,
+      logout,
     }),
     [
-      business,
-      updateBusinessState,
-      fetchBusiness,
-      clearBusiness,
-      authLoading,
+      user,
       loading,
-      error,
-    ],
+      adminLogin,
+      sendEmailOtp,
+      verifyEmailOtp,
+      completeBusinessRegistration,
+      googleLogin,
+      sendSuperAdminEmailOtp,
+      verifySuperAdminEmailOtp,
+      superAdminGoogleLogin,
+      logout,
+    ]
   );
 
   return (
-    <BusinessContext.Provider value={value}>
+    <AuthContext.Provider value={value}>
       {children}
-    </BusinessContext.Provider>
+    </AuthContext.Provider>
   );
 }
 
-export default BusinessProvider;
+export default AuthProvider;
