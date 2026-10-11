@@ -197,7 +197,6 @@ export default function LoginForm() {
       const data = result?.data ?? result;
 
       if (data?.token && data?.user) {
-        localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
         navigateAfterLogin(data.user);
         return;
       }

@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useCallback,
@@ -35,8 +34,8 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const [loading, setLoading] = useState(
-    () => Boolean(localStorage.getItem(STORAGE_KEYS.TOKEN))
+  const [loading, setLoading] = useState(() =>
+    Boolean(localStorage.getItem(STORAGE_KEYS.TOKEN)),
   );
 
   const saveUser = useCallback((nextUser) => {
@@ -60,7 +59,7 @@ export function AuthProvider({ children }) {
 
       return data;
     },
-    [saveUser]
+    [saveUser],
   );
 
   const logout = useCallback(() => {
@@ -115,26 +114,39 @@ export function AuthProvider({ children }) {
 
       return saveSession(responseData);
     },
-    [saveSession]
+    [saveSession],
   );
 
   const sendEmailOtp = useCallback(async (email, purpose = "login") => {
     const response = await sendEmailOtpApi({
-      email: String(email || "").trim().toLowerCase(),
+      email: String(email || "")
+        .trim()
+        .toLowerCase(),
       purpose,
     });
 
     return response.data;
   }, []);
 
-  const verifyEmailOtp = useCallback(async ({ email, otp }) => {
-    const response = await verifyEmailOtpApi({
-      email: String(email || "").trim().toLowerCase(),
-      otp: String(otp || "").trim(),
-    });
+  const verifyEmailOtp = useCallback(
+    async ({ email, otp }) => {
+      const response = await verifyEmailOtpApi({
+        email: String(email || "")
+          .trim()
+          .toLowerCase(),
+        otp: String(otp || "").trim(),
+      });
 
-    return response.data;
-  }, []);
+      const responseData = response.data?.data ?? response.data;
+
+      if (responseData?.token && responseData?.user) {
+        return saveSession(responseData);
+      }
+
+      return responseData;
+    },
+    [saveSession],
+  );
 
   const completeBusinessRegistration = useCallback(async (data) => {
     const response = await completeBusinessRegistrationApi(data);
@@ -152,12 +164,14 @@ export function AuthProvider({ children }) {
 
       return responseData;
     },
-    [saveSession]
+    [saveSession],
   );
 
   const sendSuperAdminEmailOtp = useCallback(async (email) => {
     const response = await sendSuperAdminEmailOtpApi({
-      email: String(email || "").trim().toLowerCase(),
+      email: String(email || "")
+        .trim()
+        .toLowerCase(),
     });
 
     return response.data;
@@ -166,7 +180,9 @@ export function AuthProvider({ children }) {
   const verifySuperAdminEmailOtp = useCallback(
     async ({ email, otp }) => {
       const response = await verifySuperAdminEmailOtpApi({
-        email: String(email || "").trim().toLowerCase(),
+        email: String(email || "")
+          .trim()
+          .toLowerCase(),
         otp: String(otp || "").trim(),
       });
 
@@ -178,13 +194,13 @@ export function AuthProvider({ children }) {
         responseData?.user?.superAdmin !== true
       ) {
         throw new Error(
-          "The server did not return an authorized Super Admin session."
+          "The server did not return an authorized Super Admin session.",
         );
       }
 
       return saveSession(responseData);
     },
-    [saveSession]
+    [saveSession],
   );
 
   const superAdminGoogleLogin = useCallback(
@@ -198,13 +214,13 @@ export function AuthProvider({ children }) {
         responseData?.user?.superAdmin !== true
       ) {
         throw new Error(
-          "The server did not return an authorized Super Admin session."
+          "The server did not return an authorized Super Admin session.",
         );
       }
 
       return saveSession(responseData);
     },
-    [saveSession]
+    [saveSession],
   );
 
   const value = useMemo(
@@ -234,14 +250,10 @@ export function AuthProvider({ children }) {
       verifySuperAdminEmailOtp,
       superAdminGoogleLogin,
       logout,
-    ]
+    ],
   );
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export default AuthProvider;
