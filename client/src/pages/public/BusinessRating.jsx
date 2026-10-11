@@ -167,7 +167,43 @@ export default function BusinessRating() {
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
     : "";
 
-  if (error || (!business && !loading)) {
+  if (!business && loading) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100dvh",
+          px: 2,
+          py: 3,
+          bgcolor: "#f3f6fc",
+        }}
+      >
+        <Container maxWidth="sm" disableGutters>
+          <Box
+            sx={{
+              bgcolor: "#fff",
+              border: "1px solid #dfe6f3",
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
+            <Box sx={{ p: 4, textAlign: "center" }}>
+              <BusinessRoundedIcon
+                sx={{ fontSize: 48, color: "#3158c9", mb: 2 }}
+              />
+              <Typography variant="h5" fontWeight={800}>
+                Business Rating
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 1 }}>
+                Your rating page is opening...
+              </Typography>
+            </Box>
+          </Box>
+        </Container>
+      </Box>
+    );
+  }
+
+  if (error || !business) {
     return (
       <Box
         sx={{
@@ -178,34 +214,19 @@ export default function BusinessRating() {
           bgcolor: "#f4f7fd",
         }}
       >
-        <Stack
-          alignItems="center"
-          spacing={2}
-          sx={{
-            width: "100%",
-            maxWidth: 420,
-            p: 3,
-            textAlign: "center",
-            bgcolor: "#fff",
-            border: "1px solid #e2e8f4",
-            borderRadius: 3,
-          }}
-        >
+        <Stack alignItems="center" spacing={2}>
           <BusinessRoundedIcon sx={{ fontSize: 40, color: "#3158c9" }} />
-
           <Typography variant="h5" fontWeight={800}>
             Business page unavailable
           </Typography>
-
           <Typography color="text.secondary">
             {error || "Unable to load this business page."}
           </Typography>
-
           <Button
             variant="contained"
             startIcon={<RefreshRoundedIcon />}
             onClick={() => setRetryKey((previous) => previous + 1)}
-            sx={{ textTransform: "none", borderRadius: 2, boxShadow: "none" }}
+            sx={{ textTransform: "none" }}
           >
             Try again
           </Button>
