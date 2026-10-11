@@ -210,7 +210,6 @@ export default function LoginForm() {
       if (data?.token && data?.user) {
         localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
         navigateAfterLogin(data.user);
-        window.location.reload();
         return;
       }
 
