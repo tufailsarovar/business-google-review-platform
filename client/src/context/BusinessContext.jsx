@@ -6,29 +6,20 @@ import {
   useState,
 } from "react";
 
-import {
-  getMyBusiness,
-} from "../services/businessService";
-
+import { getMyBusiness } from "../services/businessService";
 import useAuth from "../hooks/useAuth";
 
 export const BusinessContext = createContext(null);
 
 export function BusinessProvider({ children }) {
-  const {
-    user,
-    loading: authLoading,
-  } = useAuth();
+  const { user } = useAuth();
 
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const fetchBusiness = useCallback(async () => {
-    if (
-      !user ||
-      user.role !== "business"
-    ) {
+    if (!user || user.role !== "business") {
       setBusiness(null);
       setError("");
       setLoading(false);
@@ -39,22 +30,14 @@ export function BusinessProvider({ children }) {
     setError("");
 
     try {
-      const response =
-        await getMyBusiness();
-
-      const data =
-        response?.data?.business ||
-        response?.business ||
-        null;
+      const response = await getMyBusiness();
+      const data = response?.data?.business || response?.business || null;
 
       if (!data) {
-        throw new Error(
-          "Business information was not returned."
-        );
+        throw new Error("Business information was not returned.");
       }
 
       setBusiness(data);
-
       return data;
     } catch (err) {
       const message =
@@ -63,8 +46,6 @@ export function BusinessProvider({ children }) {
         "Unable to load business information.";
 
       setError(message);
-      setBusiness(null);
-
       return null;
     } finally {
       setLoading(false);
@@ -72,37 +53,24 @@ export function BusinessProvider({ children }) {
   }, [user]);
 
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-
-    if (!user || user.role !== "business") {
+    if (user?.role === "business") {
+      fetchBusiness();
+    } else {
       setBusiness(null);
       setError("");
       setLoading(false);
-      return;
     }
+  }, [user, fetchBusiness]);
 
-    fetchBusiness();
-  }, [
-    authLoading,
-    user,
-    fetchBusiness,
-  ]);
+  const updateBusinessState = useCallback((updatedBusiness) => {
+    setBusiness(updatedBusiness || null);
+    setError("");
+  }, []);
 
-  const updateBusinessState =
-    useCallback(updatedBusiness => {
-      setBusiness(
-        updatedBusiness || null
-      );
-      setError("");
-    }, []);
-
-  const clearBusiness =
-    useCallback(() => {
-      setBusiness(null);
-      setError("");
-    }, []);
+  const clearBusiness = useCallback(() => {
+    setBusiness(null);
+    setError("");
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -110,8 +78,7 @@ export function BusinessProvider({ children }) {
       setBusiness: updateBusinessState,
       fetchBusiness,
       clearBusiness,
-      loading:
-        authLoading || loading,
+      loading,
       error,
     }),
     [
@@ -119,16 +86,13 @@ export function BusinessProvider({ children }) {
       updateBusinessState,
       fetchBusiness,
       clearBusiness,
-      authLoading,
       loading,
       error,
-    ]
+    ],
   );
 
   return (
-    <BusinessContext.Provider
-      value={value}
-    >
+    <BusinessContext.Provider value={value}>
       {children}
     </BusinessContext.Provider>
   );
