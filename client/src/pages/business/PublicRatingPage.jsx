@@ -4,7 +4,7 @@ import PublicPageSettings from "../../components/business/PublicPageSettings";
 import { Alert, Box, Typography } from "@mui/material";
 
 export default function PublicRatingPage() {
-  const { business, loading, error } = useBusiness();
+  const { business, error } = useBusiness();
 
   return (
     <Box>
@@ -47,19 +47,13 @@ export default function PublicRatingPage() {
         </Alert>
       )}
 
-      {!loading && !business && !error && (
-        <Alert
-          severity="info"
-          sx={{
-            mb: 3,
-            borderRadius: 2.5,
-          }}
-        >
-          Business profile could not be loaded.
-        </Alert>
-      )}
-
       {business && <PublicPageSettings business={business} />}
+
+      {!business && !error && (
+        <Typography color="text.secondary">
+          Loading business settings...
+        </Typography>
+      )}
     </Box>
   );
 }

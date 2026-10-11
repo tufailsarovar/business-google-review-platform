@@ -30,10 +30,7 @@ const MotionCard = motion(Card);
 const MotionBox = motion(Box);
 
 export default function Dashboard() {
-  const {
-    business,
-    loading: businessLoading,
-  } = useBusiness();
+  const { business, loading: businessLoading } = useBusiness();
 
   const [stats, setStats] = useState({
     totalVisitors: 0,
@@ -53,8 +50,7 @@ export default function Dashboard() {
         setLoading(true);
         setError("");
 
-        const response =
-          await businessService.getBusinessAnalytics();
+        const response = await businessService.getBusinessAnalytics();
 
         if (!mounted) return;
 
@@ -62,27 +58,20 @@ export default function Dashboard() {
         const data = payload?.analytics || payload || {};
 
         setStats({
-          totalVisitors:
-            Number(data.totalVisitors) || 0,
+          totalVisitors: Number(data.totalVisitors) || 0,
 
-          totalRatings:
-            Number(data.totalRatings) || 0,
+          totalRatings: Number(data.totalRatings) || 0,
 
-          averageRating:
-            Number(data.averageRating) || 0,
+          averageRating: Number(data.averageRating) || 0,
 
-          fiveStarRatings:
-            Number(
-              data.fiveStars ??
-                data.fiveStarRatings
-            ) || 0,
+          fiveStarRatings: Number(data.fiveStars ?? data.fiveStarRatings) || 0,
         });
       } catch (err) {
         if (!mounted) return;
 
         setError(
           err?.response?.data?.message ||
-            "Unable to load dashboard statistics."
+            "Unable to load dashboard statistics.",
         );
       } finally {
         if (mounted) {
@@ -99,19 +88,12 @@ export default function Dashboard() {
   }, []);
 
   const businessName =
-    business?.businessName ||
-    business?.name ||
-    "Your Business";
+    business?.businessName || business?.name || "Your Business";
 
-  const publicSlug =
-    business?.businessId ||
-    business?.slug ||
-    business?._id;
+  const publicSlug = business?.businessId || business?.slug || business?._id;
 
   const googleConfigured = Boolean(
-    business?.googleReviewUrl ||
-      business?.googlePlaceId ||
-      business?.googleUrl
+    business?.googleReviewUrl || business?.googlePlaceId || business?.googleUrl,
   );
 
   const statsCards = [
@@ -129,9 +111,7 @@ export default function Dashboard() {
     },
     {
       title: "Average",
-      value: stats.averageRating
-        ? stats.averageRating.toFixed(1)
-        : "0.0",
+      value: stats.averageRating ? stats.averageRating.toFixed(1) : "0.0",
       description: "Average rating",
       icon: <StarRoundedIcon />,
     },
@@ -257,8 +237,7 @@ export default function Dashboard() {
                 lineHeight: 1.45,
               }}
             >
-              Manage your reviews and monitor customer
-              activity.
+              Manage your reviews and monitor customer activity.
             </Typography>
           </Box>
 
@@ -384,8 +363,8 @@ export default function Dashboard() {
               },
             }}
           >
-            Connect your Google review page to start
-            sending customers to Google.
+            Connect your Google review page to start sending customers to
+            Google.
           </Alert>
         </MotionBox>
       )}
@@ -438,11 +417,9 @@ export default function Dashboard() {
                 },
                 border: "1px solid",
                 borderColor: "divider",
-                transition:
-                  "box-shadow .25s ease",
+                transition: "box-shadow .25s ease",
                 "&:hover": {
-                  boxShadow:
-                    "0 8px 22px rgba(15,23,42,0.08)",
+                  boxShadow: "0 8px 22px rgba(15,23,42,0.08)",
                 },
               }}
             >
@@ -487,10 +464,8 @@ export default function Dashboard() {
                       xs: 0.75,
                       sm: 1.2,
                     },
-                    backgroundColor:
-                      "primary.main",
-                    color:
-                      "primary.contrastText",
+                    backgroundColor: "primary.main",
+                    color: "primary.contrastText",
                     "& svg": {
                       fontSize: {
                         xs: 16,
@@ -720,9 +695,7 @@ export default function Dashboard() {
               component={Link}
               to={
                 publicSlug
-                  ? `/rate/${encodeURIComponent(
-                      publicSlug
-                    )}`
+                  ? `/rate/${encodeURIComponent(publicSlug)}`
                   : "/business/public-page"
               }
               variant="contained"
@@ -773,23 +746,14 @@ export default function Dashboard() {
             justifyContent: "center",
           }}
         >
-          <CircularProgress
-            size={19}
-            thickness={4}
-          />
+          <CircularProgress size={19} thickness={4} />
         </Box>
       )}
     </Box>
   );
 }
 
-function ActionCard({
-  icon,
-  title,
-  description,
-  button,
-  to,
-}) {
+function ActionCard({ icon, title, description, button, to }) {
   return (
     <MotionCard
       whileHover={{
@@ -846,10 +810,8 @@ function ActionCard({
               xs: 1.2,
               sm: 1.8,
             },
-            backgroundColor:
-              "primary.main",
-            color:
-              "primary.contrastText",
+            backgroundColor: "primary.main",
+            color: "primary.contrastText",
             "& svg": {
               fontSize: {
                 xs: 16,
