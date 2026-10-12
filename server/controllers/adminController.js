@@ -527,6 +527,42 @@ export const getUsers = async (req, res, next) => {
   }
 };
 
+export const deleteUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await Business.findByIdAndDelete(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User deleted successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteAllUsers = async (req, res, next) => {
+  try {
+    const result = await Business.deleteMany({});
+
+    return res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} users deleted successfully.`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /* =========================================================
    GET ADMIN PROFILE
 ========================================================= */

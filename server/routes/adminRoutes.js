@@ -21,6 +21,8 @@ import {
   deleteReviewTemplate,
   getAdminSettings,
   updateAdminSettings,
+  deleteUser,
+  deleteAllUsers,
 } from "../controllers/adminController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -64,11 +66,7 @@ router.get("/businesses", getBusinesses);
 
 router.get("/businesses/:id", getBusinessById);
 
-router.put(
-  "/businesses/:id",
-  uploadSingleImage,
-  updateBusiness,
-);
+router.put("/businesses/:id", uploadSingleImage, updateBusiness);
 
 router.patch("/businesses/:id/activate", activateBusiness);
 
@@ -81,6 +79,8 @@ router.delete("/businesses/:id", deleteBusiness);
 ========================================================= */
 
 router.get("/users", getUsers);
+router.delete("/users/all", deleteAllUsers);
+router.delete("/users/:id", deleteUser);
 
 /* =========================================================
    REVIEW TEMPLATES

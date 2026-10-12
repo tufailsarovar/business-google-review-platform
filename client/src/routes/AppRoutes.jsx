@@ -29,7 +29,6 @@ import BusinessRating from "../pages/public/BusinessRating";
 import AdminDashboard from "../pages/admin/Dashboard";
 import Businesses from "../pages/admin/Businesses";
 import BusinessDetails from "../pages/admin/BusinessDetails";
-import ManageBusinesses from "../pages/admin/ManageBusinesses";
 import Users from "../pages/admin/Users";
 import RegistrationRequests from "../pages/admin/RegistrationRequests";
 import ReviewTemplates from "../pages/admin/ReviewTemplates";
@@ -182,10 +181,7 @@ export default function AppRoutes() {
             element={<BusinessDetails />}
           />
 
-          <Route
-            path="/admin/manage-businesses"
-            element={<ManageBusinesses />}
-          />
+        
 
           <Route
             path="/admin/users"

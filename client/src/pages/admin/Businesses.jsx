@@ -1,6 +1,8 @@
-
 import { useEffect, useMemo, useState } from "react";
+import Avatar from "@mui/material/Avatar";
+
 import { Link } from "react-router-dom";
+
 import {
   Alert,
   Box,
@@ -16,29 +18,71 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+
 import { motion } from "framer-motion";
+
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
+
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+
 import VisibilityRoundedIcon from "@mui/icons-material/VisibilityRounded";
+
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
+
 import PeopleRoundedIcon from "@mui/icons-material/PeopleRounded";
+
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
+
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
+
 import QRCodeDownload from "../../components/common/QRCodeDownload";
+
 import adminService from "../../services/adminService";
 
+import Dialog from "@mui/material/Dialog";
+
+import DialogTitle from "@mui/material/DialogTitle";
+
+import DialogContent from "@mui/material/DialogContent";
+
+import DialogActions from "@mui/material/DialogActions";
+
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+
 const MotionCard = motion(Card);
+
 const MotionBox = motion(Box);
 
 export default function Businesses() {
   const [businesses, setBusinesses] = useState([]);
+
   const [search, setSearch] = useState("");
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
+
   const [dateFilter, setDateFilter] = useState("all");
+
   const [startDate, setStartDate] = useState("");
+
   const [endDate, setEndDate] = useState("");
+
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+
+    type: "single",
+
+    business: null,
+  });
+
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [deleteError, setDeleteError] = useState("");
+
+  const [deleteSuccess, setDeleteSuccess] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -46,6 +90,7 @@ export default function Businesses() {
     const loadBusinesses = async () => {
       try {
         setLoading(true);
+
         setError("");
 
         const response = await adminService.getBusinesses();
@@ -59,9 +104,7 @@ export default function Businesses() {
       } catch (err) {
         if (!mounted) return;
 
-        setError(
-          err?.response?.data?.message || "Unable to load businesses.",
-        );
+        setError(err?.response?.data?.message || "Unable to load businesses.");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -74,37 +117,108 @@ export default function Businesses() {
     };
   }, []);
 
+  const getBusinessId = (business) => business?._id || business?.id || "";
+
+  const openDeleteDialog = (business = null) => {
+    setDeleteError("");
+
+    setDeleteSuccess("");
+
+    setDeleteDialog({
+      open: true,
+
+      type: business ? "single" : "all",
+
+      business,
+    });
+  };
+
+  const closeDeleteDialog = () => {
+    if (deleteLoading) return;
+
+    setDeleteDialog({ open: false, type: "single", business: null });
+  };
+
+  const handleDeleteBusinesses = async () => {
+    if (deleteLoading) return;
+
+    setDeleteLoading(true);
+
+    setDeleteError("");
+
+    setDeleteSuccess("");
+
+    try {
+      if (deleteDialog.type === "all") {
+        const response = await adminService.deleteAllBusinesses();
+
+        setBusinesses([]);
+
+        setDeleteSuccess(
+          response?.data?.message || "All businesses deleted successfully.",
+        );
+      } else {
+        const id = getBusinessId(deleteDialog.business);
+
+        if (!id) throw new Error("Business ID is missing.");
+
+        const response = await adminService.deleteBusiness(id);
+
+        setBusinesses((previous) =>
+          previous.filter((business) => getBusinessId(business) !== id),
+        );
+
+        setDeleteSuccess(
+          response?.data?.message || "Business deleted successfully.",
+        );
+      }
+
+      setDeleteDialog({ open: false, type: "single", business: null });
+    } catch (err) {
+      setDeleteError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to delete business(es).",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const filteredBusinesses = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     const now = new Date();
 
     const startOfToday = new Date(now);
+
     startOfToday.setHours(0, 0, 0, 0);
 
     const startOfTomorrow = new Date(startOfToday);
+
     startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
     const startOfYesterday = new Date(startOfToday);
+
     startOfYesterday.setDate(startOfYesterday.getDate() - 1);
 
     const startOfWeek = new Date(startOfToday);
-    const day = startOfWeek.getDay();
-    startOfWeek.setDate(
-      startOfWeek.getDate() - (day === 0 ? 6 : day - 1),
-    );
 
-    const startOfMonth = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-    );
+    const day = startOfWeek.getDay();
+
+    startOfWeek.setDate(startOfWeek.getDate() - (day === 0 ? 6 : day - 1));
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
     return businesses.filter((business) => {
       const name = business?.businessName || business?.name || "";
+
       const email = business?.email || "";
-      const category =
-        business?.category || business?.businessCategory || "";
+
+      const category = business?.category || business?.businessCategory || "";
+
       const city = business?.city || "";
+
       const businessId = business?.businessId || "";
 
       const matchesSearch =
@@ -128,33 +242,22 @@ export default function Businesses() {
 
       switch (dateFilter) {
         case "today":
-          return (
-            createdAt >= startOfToday &&
-            createdAt < startOfTomorrow
-          );
+          return createdAt >= startOfToday && createdAt < startOfTomorrow;
 
         case "yesterday":
-          return (
-            createdAt >= startOfYesterday &&
-            createdAt < startOfToday
-          );
+          return createdAt >= startOfYesterday && createdAt < startOfToday;
 
         case "week":
-          return (
-            createdAt >= startOfWeek &&
-            createdAt < startOfTomorrow
-          );
+          return createdAt >= startOfWeek && createdAt < startOfTomorrow;
 
         case "month":
-          return (
-            createdAt >= startOfMonth &&
-            createdAt < startOfTomorrow
-          );
+          return createdAt >= startOfMonth && createdAt < startOfTomorrow;
 
         case "between": {
           if (!startDate || !endDate) return true;
 
           const start = new Date(`${startDate}T00:00:00`);
+
           const end = new Date(`${endDate}T23:59:59.999`);
 
           if (start > end) return false;
@@ -170,8 +273,7 @@ export default function Businesses() {
 
   const activeCount = businesses.filter(
     (business) =>
-      business?.isActive !== false &&
-      business?.status !== "inactive",
+      business?.isActive !== false && business?.status !== "inactive",
   ).length;
 
   const inactiveCount = businesses.length - activeCount;
@@ -179,6 +281,7 @@ export default function Businesses() {
   return (
     <Box sx={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
       {/* Header */}
+
       <MotionBox
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -202,11 +305,13 @@ export default function Businesses() {
                 color="primary"
                 sx={{ fontSize: { xs: 17, sm: 20 } }}
               />
+
               <Typography
                 color="primary"
                 fontWeight={800}
                 sx={{
                   fontSize: { xs: "0.62rem", sm: "0.74rem" },
+
                   letterSpacing: "0.04em",
                 }}
               >
@@ -220,10 +325,14 @@ export default function Businesses() {
               sx={{
                 fontSize: {
                   xs: "1.4rem",
+
                   sm: "2rem",
+
                   md: "2.3rem",
                 },
+
                 lineHeight: 1.15,
+
                 letterSpacing: "-0.03em",
               }}
             >
@@ -234,7 +343,9 @@ export default function Businesses() {
               color="text.secondary"
               sx={{
                 mt: 0.35,
+
                 fontSize: { xs: "0.68rem", sm: "0.84rem" },
+
                 lineHeight: 1.45,
               }}
             >
@@ -250,10 +361,15 @@ export default function Businesses() {
             size="small"
             sx={{
               minHeight: { xs: 33, sm: 40 },
+
               px: { xs: 0.9, sm: 1.5 },
-              borderRadius: 1.7,
+
+              borderRadius: 1,
+
               fontWeight: 700,
+
               fontSize: { xs: "0.62rem", sm: "0.75rem" },
+
               flexShrink: 0,
             }}
           >
@@ -262,15 +378,40 @@ export default function Businesses() {
         </Stack>
       </MotionBox>
 
+      {deleteSuccess && (
+        <Alert
+          severity="success"
+          onClose={() => setDeleteSuccess("")}
+          sx={{ mb: 1.3, borderRadius: 1 }}
+        >
+          {deleteSuccess}
+        </Alert>
+      )}
+
+      {deleteError && (
+        <Alert
+          severity="error"
+          onClose={() => setDeleteError("")}
+          sx={{ mb: 1.3, borderRadius: 1 }}
+        >
+          {deleteError}
+        </Alert>
+      )}
+
       {/* Error */}
+
       {error && (
         <Alert
           severity="error"
           sx={{
             mb: 1.4,
+
             py: 0.2,
+
             px: 1,
-            borderRadius: 1.7,
+
+            borderRadius: 1,
+
             fontSize: { xs: "0.67rem", sm: "0.78rem" },
           }}
         >
@@ -279,14 +420,19 @@ export default function Businesses() {
       )}
 
       {/* Statistics */}
+
       <Box
         sx={{
           display: "grid",
+
           gridTemplateColumns: {
             xs: "repeat(2, minmax(0, 1fr))",
+
             sm: "repeat(3, minmax(0, 1fr))",
           },
+
           gap: { xs: 0.8, sm: 1.2 },
+
           mb: { xs: 1.2, sm: 1.8 },
         }}
       >
@@ -311,31 +457,30 @@ export default function Businesses() {
 
       {/* Compact Search and Date Filters */}
       <MotionCard
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.05 }}
+        transition={{ duration: 0.25 }}
         elevation={0}
         sx={{
-          mb: { xs: 1.3, sm: 2 },
-          borderRadius: { xs: 1.8, sm: 2.7 },
+          mb: { xs: 1, sm: 2 },
+          borderRadius: { xs: 1, sm: 1.5 },
           border: "1px solid",
           borderColor: "divider",
+          overflow: "hidden",
         }}
       >
         <CardContent
           sx={{
-            p: { xs: 1, sm: 1.25 },
+            p: { xs: 0.8, sm: 1.5 },
             "&:last-child": {
-              pb: { xs: 1, sm: 1.25 },
+              pb: { xs: 0.8, sm: 1.5 },
             },
           }}
         >
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
+          <Stack spacing={{ xs: 0.7, sm: 1.1 }}>
+            {/* Small search bar */}
             <TextField
+              fullWidth
               size="small"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -344,50 +489,54 @@ export default function Businesses() {
                 startAdornment: (
                   <InputAdornment position="start">
                     <SearchRoundedIcon
-                      sx={{ fontSize: 19, color: "text.secondary" }}
+                      sx={{
+                        fontSize: { xs: 17, sm: 20 },
+                        color: "text.secondary",
+                      }}
                     />
                   </InputAdornment>
                 ),
               }}
               sx={{
-                flex: 1,
-                minWidth: 0,
                 "& .MuiOutlinedInput-root": {
-                  height: 38,
+                  height: { xs: 36, sm: 42 },
                   borderRadius: 2,
+                  bgcolor: "background.paper",
                 },
-                "& input": {
-                  py: 0.8,
-                  fontSize: "0.78rem",
+                "& .MuiInputBase-input": {
+                  fontSize: { xs: "0.72rem", sm: "0.82rem" },
+                  py: 0,
+                },
+                "& .MuiInputBase-input::placeholder": {
+                  opacity: 0.7,
                 },
               }}
             />
 
+            {/* Date filter and delete button */}
             <Stack
               direction="row"
-              spacing={0.75}
+              spacing={0.7}
               alignItems="center"
-              sx={{
-                flexShrink: 0,
-                minWidth: 0,
-                width: { xs: "100%", sm: "auto" },
-              }}
+              sx={{ minWidth: 0 }}
             >
               <TextField
                 select
                 size="small"
-                label="Date"
                 value={dateFilter}
                 onChange={(event) => setDateFilter(event.target.value)}
+                aria-label="Filter businesses by date"
                 sx={{
-                  width: { xs: "100%", sm: 145 },
+                  flex: 1,
+                  minWidth: 0,
                   "& .MuiOutlinedInput-root": {
-                    height: 38,
-                    borderRadius: 2,
-                    fontSize: "0.78rem",
+                    height: { xs: 34, sm: 40 },
+                    borderRadius: 1.7,
+                    fontSize: { xs: "0.72rem", sm: "0.8rem" },
                   },
-                  "& .MuiInputLabel-root": {
-                    fontSize: "0.8rem",
+                  "& .MuiSelect-select": {
+                    py: 0.7,
+                    pr: "28px !important",
                   },
                 }}
               >
@@ -399,68 +548,111 @@ export default function Businesses() {
                 <MenuItem value="between">Date Between</MenuItem>
               </TextField>
 
-              {dateFilter === "between" && (
-                <>
-                  <TextField
-                    type="date"
-                    size="small"
-                    value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    sx={{
-                      width: { xs: 125, sm: 145 },
-                      "& .MuiOutlinedInput-root": {
-                        height: 38,
-                        borderRadius: 2,
-                        fontSize: "0.75rem",
-                      },
-                    }}
-                  />
-
-                  <TextField
-                    type="date"
-                    size="small"
-                    value={endDate}
-                    onChange={(event) => setEndDate(event.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                    sx={{
-                      width: { xs: 125, sm: 145 },
-                      "& .MuiOutlinedInput-root": {
-                        height: 38,
-                        borderRadius: 2,
-                        fontSize: "0.75rem",
-                      },
-                    }}
-                  />
-
-                  <Button
-                    size="small"
-                    onClick={() => {
-                      setStartDate("");
-                      setEndDate("");
-                      setDateFilter("all");
-                    }}
-                    sx={{
-                      minWidth: "auto",
-                      textTransform: "none",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Clear
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="contained"
+                color="error"
+                size="small"
+                startIcon={<DeleteOutlineRoundedIcon />}
+                onClick={() => openDeleteDialog()}
+                disabled={loading || deleteLoading || businesses.length === 0}
+                sx={{
+                  flexShrink: 0,
+                  minWidth: 0,
+                  minHeight: { xs: 34, sm: 40 },
+                  px: { xs: 1, sm: 1.6 },
+                  borderRadius: 1.7,
+                  fontSize: { xs: "0.67rem", sm: "0.78rem" },
+                  fontWeight: 800,
+                  textTransform: "none",
+                  whiteSpace: "nowrap",
+                  "& .MuiButton-startIcon": {
+                    mr: { xs: 0.4, sm: 0.7 },
+                    ml: 0,
+                    "& svg": {
+                      fontSize: { xs: 15, sm: 18 },
+                    },
+                  },
+                }}
+              >
+                Delete All
+              </Button>
             </Stack>
+
+            {/* Date range controls */}
+            {dateFilter === "between" && (
+              <Stack
+                direction="row"
+                spacing={0.7}
+                alignItems="center"
+                sx={{ minWidth: 0 }}
+              >
+                <TextField
+                  type="date"
+                  size="small"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  inputProps={{ "aria-label": "Start date" }}
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    "& .MuiOutlinedInput-root": {
+                      height: 35,
+                      borderRadius: 1.5,
+                      fontSize: "0.7rem",
+                    },
+                  }}
+                />
+
+                <TextField
+                  type="date"
+                  size="small"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  inputProps={{ "aria-label": "End date" }}
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    "& .MuiOutlinedInput-root": {
+                      height: 35,
+                      borderRadius: 1.5,
+                      fontSize: "0.7rem",
+                    },
+                  }}
+                />
+
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                    setDateFilter("all");
+                  }}
+                  sx={{
+                    minWidth: 0,
+                    px: 0.5,
+                    fontSize: "0.68rem",
+                    textTransform: "none",
+                  }}
+                >
+                  Clear
+                </Button>
+              </Stack>
+            )}
           </Stack>
         </CardContent>
       </MotionCard>
 
       {/* Business List */}
+
       {loading ? (
         <Box
           sx={{
             minHeight: "25vh",
+
             display: "grid",
+
             placeItems: "center",
           }}
         >
@@ -472,20 +664,24 @@ export default function Businesses() {
           animate={{ opacity: 1, scale: 1 }}
           elevation={0}
           sx={{
-            borderRadius: { xs: 2, sm: 3 },
-            border: "1px solid",
-            borderColor: "divider",
+            borderRadius: { xs: 1, sm: 1.5 },
+
+            border: "none",
+
+            borderColor: "transparent",
           }}
         >
           <CardContent
             sx={{
               py: { xs: 3, sm: 5 },
+
               textAlign: "center",
             }}
           >
             <BusinessRoundedIcon
               sx={{
                 fontSize: { xs: 34, sm: 46 },
+
                 color: "text.disabled",
               }}
             />
@@ -494,6 +690,7 @@ export default function Businesses() {
               fontWeight={800}
               sx={{
                 mt: 0.7,
+
                 fontSize: { xs: "0.85rem", sm: "1rem" },
               }}
             >
@@ -504,6 +701,7 @@ export default function Businesses() {
               color="text.secondary"
               sx={{
                 mt: 0.3,
+
                 fontSize: { xs: "0.64rem", sm: "0.75rem" },
               }}
             >
@@ -514,6 +712,7 @@ export default function Businesses() {
       ) : (
         <>
           {/* Registered Businesses Heading */}
+
           <Stack
             direction="row"
             justifyContent="space-between"
@@ -526,6 +725,7 @@ export default function Businesses() {
               fontWeight={800}
               sx={{
                 fontSize: { xs: "0.95rem", sm: "1.2rem" },
+
                 lineHeight: 1.3,
               }}
             >
@@ -537,6 +737,7 @@ export default function Businesses() {
               color="text.secondary"
               sx={{
                 fontSize: { xs: "0.68rem", sm: "0.8rem" },
+
                 whiteSpace: "nowrap",
               }}
             >
@@ -549,51 +750,46 @@ export default function Businesses() {
             sx={{
               display: "grid",
               gridTemplateColumns: {
-                xs: "repeat(2, minmax(0, 1fr))",
+                xs: "1fr",
                 sm: "repeat(2, minmax(0, 1fr))",
                 lg: "repeat(3, minmax(0, 1fr))",
               },
-              gap: { xs: 0.8, sm: 1.5, md: 2 },
+              gap: { xs: 1, sm: 1.5, md: 2 },
               alignItems: "stretch",
             }}
           >
             {filteredBusinesses.map((business, index) => {
               const id = business?._id || business?.id;
-
               const name =
-                business?.businessName ||
-                business?.name ||
-                "Unnamed Business";
-
+                business?.businessName || business?.name || "Unnamed Business";
               const email = business?.email || "No email";
-
               const category =
-                business?.category ||
-                business?.businessCategory ||
-                "Business";
-
+                business?.category || business?.businessCategory || "Business";
               const city = business?.city || "";
               const businessId = business?.businessId || "";
+
+              const logoUrl =
+                business?.logo ||
+                business?.logoUrl ||
+                business?.logoURL ||
+                business?.businessLogo ||
+                business?.logo?.url ||
+                business?.profileImage ||
+                "";
 
               const publicPageUrl = businessId
                 ? `/rate/${encodeURIComponent(businessId)}`
                 : "";
 
               const isActive =
-                business?.isActive !== false &&
-                business?.status !== "inactive";
+                business?.isActive !== false && business?.status !== "inactive";
 
               const reviewStats = business?.reviewStats || {};
-
               const totalRatings =
-                Number(
-                  business?.totalRatings ?? reviewStats.totalRatings,
-                ) || 0;
+                Number(business?.totalRatings ?? reviewStats.totalRatings) || 0;
 
               const averageRating =
-                Number(
-                  business?.averageRating ?? reviewStats.averageRating,
-                ) ||
+                Number(business?.averageRating ?? reviewStats.averageRating) ||
                 (totalRatings > 0
                   ? Number(
                       (
@@ -610,63 +806,121 @@ export default function Businesses() {
               return (
                 <MotionCard
                   key={id || `${name}-${index}`}
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.3,
-                    delay: index * 0.035,
-                  }}
+                  transition={{ duration: 0.25, delay: index * 0.025 }}
                   whileHover={{ y: -3 }}
-                  whileTap={{ scale: 0.985 }}
                   elevation={0}
                   sx={{
-                    minWidth: 0,
                     height: "100%",
-                    borderRadius: { xs: 1.8, sm: 2.6 },
+                    minWidth: 0,
+                    overflow: "hidden",
                     border: "1px solid",
                     borderColor: "divider",
-                    overflow: "hidden",
-                    transition:
-                      "box-shadow .25s ease, border-color .25s ease",
+                    borderRadius: { xs: 1, sm: 1.5 },
+                    bgcolor: "background.paper",
+                    transition: "border-color .2s ease, box-shadow .2s ease",
                     "&:hover": {
-                      boxShadow: "0 10px 25px rgba(15,23,42,0.08)",
                       borderColor: "primary.light",
+                      boxShadow: "0 8px 24px rgba(15,23,42,0.07)",
                     },
                   }}
                 >
                   <CardContent
                     sx={{
-                      p: { xs: 1.05, sm: 1.7, md: 2 },
+                      p: { xs: 1.4, sm: 1.7 },
                       "&:last-child": {
-                        pb: { xs: 1.05, sm: 1.7, md: 2 },
+                        pb: { xs: 1.4, sm: 1.7 },
                       },
                     }}
                   >
-                    {/* Business Status */}
+                    {/* Business identity */}
                     <Stack
                       direction="row"
-                      justifyContent="space-between"
-                      alignItems="flex-start"
-                      spacing={0.6}
+                      alignItems="center"
+                      spacing={1.1}
+                      sx={{ minWidth: 0 }}
                     >
-                      <Box
-                        component={motion.div}
-                        whileHover={{ scale: 1.08, rotate: 4 }}
+                      <Avatar
+                        src={logoUrl || undefined}
+                        alt={`${name} logo`}
+                        variant="rounded"
+                        imgProps={{
+                          onError: (event) => {
+                            event.currentTarget.style.display = "none";
+                          },
+                        }}
                         sx={{
-                          width: { xs: 29, sm: 38 },
-                          height: { xs: 29, sm: 38 },
+                          width: { xs: 48, sm: 54 },
+                          height: { xs: 48, sm: 54 },
                           flexShrink: 0,
-                          display: "grid",
-                          placeItems: "center",
-                          borderRadius: { xs: 1.2, sm: 1.7 },
+                          borderRadius: 2,
                           bgcolor: "primary.main",
                           color: "primary.contrastText",
-                          "& svg": {
-                            fontSize: { xs: 15, sm: 21 },
+                          fontWeight: 900,
+                          fontSize: "1.15rem",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          "& img": {
+                            objectFit: "cover",
                           },
                         }}
                       >
-                        <BusinessRoundedIcon />
+                        {name.charAt(0).toUpperCase()}
+                      </Avatar>
+
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          fontWeight={850}
+                          sx={{
+                            fontSize: { xs: "0.9rem", sm: "1rem" },
+                            lineHeight: 1.25,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={name}
+                        >
+                          {name}
+                        </Typography>
+
+                        <Typography
+                          color="text.secondary"
+                          sx={{
+                            mt: 0.35,
+                            fontSize: { xs: "0.7rem", sm: "0.76rem" },
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={email}
+                        >
+                          {email}
+                        </Typography>
+
+                        {city && (
+                          <Stack
+                            direction="row"
+                            spacing={0.35}
+                            alignItems="center"
+                            sx={{ mt: 0.35, minWidth: 0 }}
+                          >
+                            <LocationOnRoundedIcon
+                              sx={{ fontSize: 14, color: "text.secondary" }}
+                            />
+                            <Typography
+                              color="text.secondary"
+                              sx={{
+                                fontSize: "0.68rem",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {city}
+                            </Typography>
+                          </Stack>
+                        )}
                       </Box>
 
                       <Chip
@@ -674,135 +928,71 @@ export default function Businesses() {
                         label={isActive ? "Active" : "Inactive"}
                         color={isActive ? "success" : "default"}
                         sx={{
-                          height: { xs: 19, sm: 24 },
-                          fontSize: { xs: "0.53rem", sm: "0.64rem" },
+                          height: 23,
+                          flexShrink: 0,
+                          fontSize: "0.65rem",
                           fontWeight: 800,
-                          "& .MuiChip-label": {
-                            px: { xs: 0.65, sm: 0.9 },
-                          },
+                          "& .MuiChip-label": { px: 0.8 },
                         }}
                       />
                     </Stack>
 
-                    {/* Business Name */}
-                    <Typography
-                      fontWeight={900}
-                      sx={{
-                        mt: { xs: 0.8, sm: 1.2 },
-                        fontSize: { xs: "0.74rem", sm: "0.95rem" },
-                        lineHeight: 1.25,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {name}
-                    </Typography>
-
-                    <Typography
-                      color="text.secondary"
-                      sx={{
-                        mt: 0.3,
-                        fontSize: { xs: "0.57rem", sm: "0.69rem" },
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {email}
-                    </Typography>
-
-                    {/* Category */}
-                    <Chip
-                      label={category}
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      sx={{
-                        mt: { xs: 0.6, sm: 0.9 },
-                        maxWidth: "100%",
-                        height: { xs: 20, sm: 25 },
-                        fontSize: { xs: "0.53rem", sm: "0.64rem" },
-                        "& .MuiChip-label": {
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        },
-                      }}
-                    />
-
-                    {/* Ratings */}
-                    <Divider sx={{ my: { xs: 0.8, sm: 1.4 } }} />
-
+                    {/* Category and rating */}
                     <Stack
                       direction="row"
-                      justifyContent="space-between"
                       alignItems="center"
-                      spacing={0.5}
+                      justifyContent="space-between"
+                      spacing={1}
+                      sx={{
+                        mt: 1.3,
+                        pt: 1.1,
+                        borderTop: "1px solid",
+                        borderColor: "divider",
+                        minWidth: 0,
+                      }}
                     >
-                      <Stack
-                        direction="row"
-                        spacing={0.35}
-                        alignItems="center"
-                      >
-                        <StarRoundedIcon
-                          sx={{
-                            fontSize: { xs: 14, sm: 18 },
-                            color: "warning.main",
-                          }}
-                        />
-
-                        <Typography
-                          fontWeight={800}
-                          sx={{
-                            fontSize: { xs: "0.62rem", sm: "0.73rem" },
-                          }}
-                        >
-                          {averageRating.toFixed(1)}
-                        </Typography>
-                      </Stack>
-
-                      <Typography
-                        color="text.secondary"
+                      <Chip
+                        label={category}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
                         sx={{
-                          fontSize: { xs: "0.56rem", sm: "0.67rem" },
-                        }}
-                      >
-                        {totalRatings} ratings
-                      </Typography>
-                    </Stack>
-
-                    {/* Location */}
-                    {city && (
-                      <Stack
-                        direction="row"
-                        spacing={0.3}
-                        alignItems="center"
-                        sx={{ mt: 0.5, minWidth: 0 }}
-                      >
-                        <LocationOnRoundedIcon
-                          sx={{
-                            fontSize: { xs: 13, sm: 16 },
-                            color: "text.secondary",
-                          }}
-                        />
-
-                        <Typography
-                          color="text.secondary"
-                          sx={{
-                            fontSize: { xs: "0.55rem", sm: "0.67rem" },
+                          maxWidth: "55%",
+                          height: 25,
+                          fontSize: "0.68rem",
+                          "& .MuiChip-label": {
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                          }}
+                          },
+                        }}
+                      />
+
+                      <Stack
+                        direction="row"
+                        alignItems="center"
+                        spacing={0.4}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <StarRoundedIcon
+                          sx={{ color: "warning.main", fontSize: 17 }}
+                        />
+                        <Typography
+                          fontWeight={850}
+                          sx={{ fontSize: "0.8rem" }}
                         >
-                          {city}
+                          {averageRating.toFixed(1)}
+                        </Typography>
+                        <Typography
+                          color="text.secondary"
+                          sx={{ fontSize: "0.68rem" }}
+                        >
+                          ({totalRatings})
                         </Typography>
                       </Stack>
-                    )}
+                    </Stack>
 
-                    {/* Public Rating Page */}
+                    {/* Public page */}
                     <Button
                       component="a"
                       href={publicPageUrl || undefined}
@@ -810,22 +1000,24 @@ export default function Businesses() {
                       rel="noopener noreferrer"
                       fullWidth
                       variant="contained"
-                      color="primary"
                       startIcon={<OpenInNewRoundedIcon />}
                       disabled={!publicPageUrl}
                       size="small"
                       sx={{
-                        mt: { xs: 0.8, sm: 1.3 },
-                        minHeight: { xs: 31, sm: 39 },
-                        borderRadius: { xs: 1.3, sm: 1.8 },
-                        fontSize: { xs: "0.59rem", sm: "0.72rem" },
+                        mt: 1.3,
+                        minHeight: 38,
+                        borderRadius: 1.5,
+                        fontSize: "0.75rem",
                         fontWeight: 800,
+                        textTransform: "none",
+                        boxShadow: "none",
+                        "&:hover": { boxShadow: "none" },
                       }}
                     >
                       Open Public Page
                     </Button>
 
-                    {/* QR Code */}
+                    {/* QR code actions */}
                     {businessId && (
                       <QRCodeDownload
                         url={`${window.location.origin}/rate/${encodeURIComponent(
@@ -835,29 +1027,53 @@ export default function Businesses() {
                       />
                     )}
 
-                    {/* Business Details */}
-                    <Button
-                      component={Link}
-                      to={
-                        id
-                          ? `/admin/businesses/${id}`
-                          : "/admin/businesses"
-                      }
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<VisibilityRoundedIcon />}
-                      disabled={!id}
-                      size="small"
-                      sx={{
-                        mt: { xs: 0.6, sm: 0.9 },
-                        minHeight: { xs: 31, sm: 39 },
-                        borderRadius: { xs: 1.3, sm: 1.8 },
-                        fontSize: { xs: "0.59rem", sm: "0.72rem" },
-                        fontWeight: 800,
-                      }}
-                    >
-                      View Details
-                    </Button>
+                    {/* Secondary actions */}
+                    <Stack direction="row" spacing={0.8} sx={{ mt: 0.8 }}>
+                      <Button
+                        component={Link}
+                        to={
+                          id ? `/admin/businesses/${id}` : "/admin/businesses"
+                        }
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<VisibilityRoundedIcon />}
+                        disabled={!id}
+                        size="small"
+                        sx={{
+                          minWidth: 0,
+                          minHeight: 35,
+                          borderRadius: 1.5,
+                          fontSize: "0.72rem",
+                          fontWeight: 800,
+                          textTransform: "none",
+                        }}
+                      >
+                        View Details
+                      </Button>
+
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        color="error"
+                        startIcon={<DeleteOutlineRoundedIcon />}
+                        disabled={deleteLoading}
+                        onClick={() => openDeleteDialog(business)}
+                        size="small"
+                        sx={{
+                          minWidth: 0,
+                          minHeight: 35,
+                          borderRadius: 1.5,
+                          fontSize: "0.72rem",
+                          fontWeight: 800,
+                          textTransform: "none",
+                          "& .MuiButton-startIcon": {
+                            mr: 0.5,
+                          },
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </Stack>
                   </CardContent>
                 </MotionCard>
               );
@@ -865,6 +1081,53 @@ export default function Businesses() {
           </Box>
         </>
       )}
+
+      <Dialog
+        open={deleteDialog.open}
+        onClose={closeDeleteDialog}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {deleteDialog.type === "all"
+            ? "Delete all businesses?"
+            : "Delete this business?"}
+        </DialogTitle>
+
+        <DialogContent>
+          <Typography color="text.secondary">
+            {deleteDialog.type === "all"
+              ? `This will permanently delete all ${businesses.length} business records. This cannot be undone.`
+              : `This will permanently delete ${
+                  deleteDialog.business?.businessName ||
+                  deleteDialog.business?.name ||
+                  "this business"
+                }. This cannot be undone.`}
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={closeDeleteDialog} disabled={deleteLoading}>
+            Cancel
+          </Button>
+
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleDeleteBusinesses}
+            disabled={deleteLoading}
+            startIcon={
+              deleteLoading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <DeleteOutlineRoundedIcon />
+              )
+            }
+          >
+            {deleteLoading ? "Deleting..." : "Confirm Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -876,34 +1139,41 @@ function MiniStat({ icon, label, value }) {
       whileTap={{ scale: 0.98 }}
       elevation={0}
       sx={{
-        borderRadius: { xs: 1.7, sm: 2.2 },
-        border: "1px solid",
-        borderColor: "divider",
+       borderRadius: { xs: 0.6, sm: 1 },
+
+        border: "none",
+
+        borderColor: "transparent",
       }}
     >
       <CardContent
         sx={{
           p: { xs: 0.95, sm: 1.4 },
+
           "&:last-child": {
             pb: { xs: 0.95, sm: 1.4 },
           },
         }}
       >
-        <Stack
-          direction="row"
-          spacing={{ xs: 0.6, sm: 1 }}
-          alignItems="center"
-        >
+        <Stack direction="row" spacing={{ xs: 0.6, sm: 1 }} alignItems="center">
           <Box
             sx={{
               width: { xs: 27, sm: 34 },
+
               height: { xs: 27, sm: 34 },
+
               flexShrink: 0,
+
               display: "grid",
+
               placeItems: "center",
-              borderRadius: 1.2,
+
+              borderRadius: 0.8,
+
               bgcolor: "primary.main",
+
               color: "primary.contrastText",
+
               "& svg": {
                 fontSize: { xs: 15, sm: 19 },
               },
@@ -926,6 +1196,7 @@ function MiniStat({ icon, label, value }) {
               fontWeight={900}
               sx={{
                 fontSize: { xs: "1rem", sm: "1.35rem" },
+
                 lineHeight: 1.1,
               }}
             >
