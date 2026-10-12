@@ -70,20 +70,6 @@ export default function PublicPageSettings({ business }) {
 
   return (
     <Stack spacing={2.5} sx={{ minWidth: 0, width: "100%" }}>
-      <Stack spacing={0.5}>
-        <Typography variant="subtitle1" fontWeight={800}>
-          Your public review page
-        </Typography>
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ lineHeight: 1.7 }}
-        >
-          Share this page with customers so they can rate their experience
-          and continue to your Google review page.
-        </Typography>
-      </Stack>
 
       <Paper
         variant="outlined"

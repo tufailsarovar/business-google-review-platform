@@ -43,7 +43,7 @@ const navigation = [
     icon: <BarChartRoundedIcon />,
   },
   {
-    label: "Contact Admin",
+    label: "Support Team",
     path: "/business/contact-admin",
     icon: <SupportAgentRoundedIcon />,
   },

@@ -9,6 +9,12 @@ import {
   Typography,
 } from "@mui/material";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
+import InstagramIcon from "@mui/icons-material/Instagram";
+import FacebookRoundedIcon from "@mui/icons-material/FacebookRounded";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import XIcon from "@mui/icons-material/X";
 
 import { getMyBusiness, updateBusiness } from "../../services/businessService";
 import BusinessLogoUpload from "./BusinessLogoUpload";
@@ -32,7 +38,63 @@ const initialForm = {
   website: "",
   logoUrl: "",
   googleReviewUrl: "",
+  socialLinks: {
+    instagram: "",
+    facebook: "",
+    youtube: "",
+    whatsapp: "",
+    linkedin: "",
+    x: "",
+  },
 };
+
+const socialFields = [
+  {
+    name: "instagram",
+    label: "Instagram",
+    placeholder: "https://instagram.com/yourbusiness",
+    Icon: InstagramIcon,
+  },
+  {
+    name: "facebook",
+    label: "Facebook",
+    placeholder: "https://facebook.com/yourbusiness",
+    Icon: FacebookRoundedIcon,
+  },
+  {
+    name: "youtube",
+    label: "YouTube",
+    placeholder: "https://youtube.com/@yourbusiness",
+    Icon: YouTubeIcon,
+  },
+  {
+    name: "whatsapp",
+    label: "WhatsApp",
+    placeholder: "https://wa.me/919876543210",
+    Icon: WhatsAppIcon,
+  },
+  {
+    name: "linkedin",
+    label: "LinkedIn",
+    placeholder: "https://linkedin.com/company/yourbusiness",
+    Icon: LinkedInIcon,
+  },
+  {
+    name: "x",
+    label: "X",
+    placeholder: "https://x.com/yourbusiness",
+    Icon: XIcon,
+  },
+];
+
+const emptySocialLinks = () => ({
+  instagram: "",
+  facebook: "",
+  youtube: "",
+  whatsapp: "",
+  linkedin: "",
+  x: "",
+});
 
 export default function BusinessProfileForm({ onSaved }) {
   const [form, setForm] = useState(initialForm);
@@ -68,6 +130,10 @@ export default function BusinessProfileForm({ onSaved }) {
             business.googleReviewUrl ||
             business.googleUrl ||
             "",
+          socialLinks: {
+            ...emptySocialLinks(),
+            ...(business.socialLinks || {}),
+          },
         });
       } catch (err) {
         if (mounted) {
@@ -96,6 +162,42 @@ export default function BusinessProfileForm({ onSaved }) {
     setErrors((previous) => ({
       ...previous,
       [field]: "",
+    }));
+
+    setError("");
+    setMessage("");
+  };
+
+  const updateSocialLink = (field) => (event) => {
+    setForm((previous) => ({
+      ...previous,
+      socialLinks: {
+        ...previous.socialLinks,
+        [field]: event.target.value,
+      },
+    }));
+
+    setErrors((previous) => ({
+      ...previous,
+      [`socialLinks.${field}`]: "",
+    }));
+
+    setError("");
+    setMessage("");
+  };
+
+  const clearSocialLink = (field) => {
+    setForm((previous) => ({
+      ...previous,
+      socialLinks: {
+        ...previous.socialLinks,
+        [field]: "",
+      },
+    }));
+
+    setErrors((previous) => ({
+      ...previous,
+      [`socialLinks.${field}`]: "",
     }));
 
     setError("");
@@ -140,6 +242,14 @@ export default function BusinessProfileForm({ onSaved }) {
       nextErrors.googleReviewUrl = "Enter a valid Google review URL.";
     }
 
+    socialFields.forEach(({ name, label }) => {
+      const value = form.socialLinks[name]?.trim();
+
+      if (value && !isValidUrl(value)) {
+        nextErrors[`socialLinks.${name}`] = `Enter a valid ${label} URL.`;
+      }
+    });
+
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -163,6 +273,12 @@ export default function BusinessProfileForm({ onSaved }) {
         address: form.address.trim(),
         website: form.website.trim(),
         googleReviewUrl: form.googleReviewUrl.trim(),
+        socialLinks: Object.fromEntries(
+          Object.entries(form.socialLinks).map(([key, value]) => [
+            key,
+            value.trim(),
+          ]),
+        ),
       };
 
       let response;
@@ -171,7 +287,11 @@ export default function BusinessProfileForm({ onSaved }) {
         const formData = new FormData();
 
         Object.entries(payload).forEach(([key, value]) => {
-          formData.append(key, value);
+          if (key === "socialLinks") {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, value);
+          }
         });
 
         formData.append("image", logoFile);
@@ -201,9 +321,16 @@ export default function BusinessProfileForm({ onSaved }) {
       const savedLogo =
         savedBusiness.logoUrl || savedBusiness.logo || form.logoUrl;
 
+      const savedSocialLinks = {
+        ...emptySocialLinks(),
+        ...form.socialLinks,
+        ...(savedBusiness.socialLinks || {}),
+      };
+
       const updatedBusiness = {
         ...savedBusiness,
         googleReviewUrl: savedGoogleUrl,
+        socialLinks: savedSocialLinks,
       };
 
       setForm((previous) => ({
@@ -212,15 +339,17 @@ export default function BusinessProfileForm({ onSaved }) {
           savedBusiness.businessName ||
           savedBusiness.name ||
           previous.businessName,
-        ownerName: savedBusiness.ownerName || previous.ownerName,
+        ownerName:
+          savedBusiness.ownerName || savedBusiness.name || previous.ownerName,
         email: savedBusiness.email || previous.email,
         mobile: savedBusiness.mobile || savedBusiness.phone || previous.mobile,
-        category: savedBusiness.category || previous.category,
+        category: savedBusiness.category ?? previous.category,
         description: savedBusiness.description ?? previous.description,
         address: savedBusiness.address ?? previous.address,
         website: savedBusiness.website ?? previous.website,
         logoUrl: savedLogo,
         googleReviewUrl: savedGoogleUrl,
+        socialLinks: savedSocialLinks,
       }));
 
       setLogoFile(null);
@@ -376,21 +505,72 @@ export default function BusinessProfileForm({ onSaved }) {
             disabled={saving}
           />
         </Grid>
-
-        <Grid size={{ xs: 12 }}>
-          <Stack spacing={1}>
-            <Typography variant="subtitle2" fontWeight={800}>
-              Business logo
-            </Typography>
-
-            <BusinessLogoUpload
-              value={form.logoUrl}
-              onChange={handleLogoChange}
-              disabled={saving}
-            />
-          </Stack>
-        </Grid>
       </Grid>
+
+      <Divider />
+
+      <Stack spacing={1}>
+        <Typography variant="subtitle1" fontWeight={800}>
+          Social media links
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Add the profiles you want customers to visit. Leave a field empty or
+          clear it to remove that link from your public page.
+        </Typography>
+      </Stack>
+
+      <Grid container spacing={2}>
+        {socialFields.map(({ name, label, placeholder, Icon }) => (
+          <Grid key={name} size={{ xs: 12, md: 6 }}>
+            <TextField
+              fullWidth
+              label={label}
+              placeholder={placeholder}
+              value={form.socialLinks[name] || ""}
+              onChange={updateSocialLink(name)}
+              error={Boolean(errors[`socialLinks.${name}`])}
+              helperText={errors[`socialLinks.${name}`] || " "}
+              disabled={saving}
+              InputProps={{
+                startAdornment: (
+                  <Icon
+                    sx={{
+                      mr: 1,
+                      color: "text.secondary",
+                      flexShrink: 0,
+                    }}
+                  />
+                ),
+                endAdornment: form.socialLinks[name] ? (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() => clearSocialLink(name)}
+                    disabled={saving}
+                    sx={{ minWidth: "auto", whiteSpace: "nowrap" }}
+                  >
+                    Clear
+                  </Button>
+                ) : null,
+              }}
+            />
+          </Grid>
+        ))}
+      </Grid>
+
+      <Divider />
+
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" fontWeight={800}>
+          Business logo
+        </Typography>
+
+        <BusinessLogoUpload
+          value={form.logoUrl}
+          onChange={handleLogoChange}
+          disabled={saving}
+        />
+      </Stack>
 
       <Divider />
 

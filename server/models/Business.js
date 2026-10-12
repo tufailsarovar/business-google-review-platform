@@ -1,5 +1,17 @@
 import mongoose from "mongoose";
 
+const socialLinksSchema = new mongoose.Schema(
+  {
+    instagram: { type: String, trim: true, default: "" },
+    facebook: { type: String, trim: true, default: "" },
+    youtube: { type: String, trim: true, default: "" },
+    whatsapp: { type: String, trim: true, default: "" },
+    linkedin: { type: String, trim: true, default: "" },
+    x: { type: String, trim: true, default: "" },
+  },
+  { _id: false },
+);
+
 const businessSchema = new mongoose.Schema(
   {
     businessId: {
@@ -33,8 +45,6 @@ const businessSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Optional for legacy records. New business accounts use
-    // verified email OTP or Google sign-in instead of passwords.
     password: {
       type: String,
       minlength: 8,
@@ -102,6 +112,11 @@ const businessSchema = new mongoose.Schema(
       default: "",
     },
 
+    socialLinks: {
+      type: socialLinksSchema,
+      default: () => ({}),
+    },
+
     logo: {
       type: String,
       trim: true,
@@ -135,11 +150,6 @@ const businessSchema = new mongoose.Schema(
       default: true,
     },
 
-    /*
-     * pending  = registration waiting for admin approval
-     * approved = admin approved the business
-     * rejected = admin rejected the registration
-     */
     approvalStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],

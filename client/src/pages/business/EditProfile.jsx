@@ -88,8 +88,8 @@ export default function EditProfile() {
             lineHeight: 1.55,
           }}
         >
-          Update your business information, contact details,
-          description, and logo.
+          Update your business information, contact details, description, and
+          logo.
         </Typography>
       </Box>
 

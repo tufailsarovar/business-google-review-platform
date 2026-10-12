@@ -150,7 +150,7 @@ export const contactAdmin = async (
       email: normalizedEmail,
       subject:
         normalizedSubject ||
-        "Contact Admin",
+        "Support Team",
       message: normalizedMessage,
     });
 

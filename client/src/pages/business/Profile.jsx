@@ -1,4 +1,7 @@
+
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+
 import {
   Avatar,
   Box,
@@ -9,8 +12,8 @@ import {
   Grid,
   Stack,
   Typography,
+  CircularProgress,
 } from "@mui/material";
-import { motion } from "framer-motion";
 
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import GoogleIcon from "@mui/icons-material/Google";
@@ -20,11 +23,29 @@ import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 
 import { useBusiness } from "../../hooks/useBusiness";
 
 const MotionBox = motion(Box);
 const MotionCard = motion(Card);
+
+const pageVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.07 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: "easeOut" },
+  },
+};
 
 export default function Profile() {
   const { business, loading } = useBusiness();
@@ -33,13 +54,16 @@ export default function Profile() {
     return (
       <Box
         sx={{
-          minHeight: "50vh",
-          display: "grid",
-          placeItems: "center",
-          px: 2,
+          minHeight: "35vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1,
         }}
       >
-        <Typography color="text.secondary">
+        <CircularProgress size={26} />
+        <Typography color="text.secondary" variant="body2">
           Loading profile...
         </Typography>
       </Box>
@@ -47,222 +71,199 @@ export default function Profile() {
   }
 
   const businessName =
-    business?.businessName ||
-    business?.name ||
-    "Your Business";
+    business?.businessName || business?.name || "Your Business";
 
   const description =
     business?.description ||
     "Add a description to tell customers more about your business.";
 
-  const logo =
-    business?.logoUrl ||
-    business?.logo ||
-    "";
-
-  const email =
-    business?.email ||
-    business?.ownerEmail ||
-    "Not provided";
-
-  const phone =
-    business?.phone ||
-    business?.mobile ||
-    "Not provided";
-
+  const logo = business?.logoUrl || business?.logo || "";
+  const email = business?.email || business?.ownerEmail || "Not provided";
+  const phone = business?.phone || business?.mobile || "Not provided";
   const category =
-    business?.category ||
-    business?.businessCategory ||
-    "Business";
-
+    business?.category || business?.businessCategory || "Business";
   const address =
-    business?.address ||
-    business?.location ||
-    "Address not added";
+    business?.address || business?.location || "Address not added";
 
   const googleUrl =
-  business?.googleBusiness?.reviewUrl ||
-  business?.googleReviewUrl ||
-  business?.googleUrl ||
-  "";
+    business?.googleBusiness?.reviewUrl ||
+    business?.googleReviewUrl ||
+    business?.googleUrl ||
+    "";
+
+  const setupItems = [
+    {
+      label: "Business information",
+      complete: Boolean(business?.businessName || business?.name),
+      status:
+        business?.businessName || business?.name
+          ? "Complete"
+          : "Missing",
+    },
+    {
+      label: "Google review link",
+      complete: Boolean(googleUrl),
+      status: googleUrl ? "Connected" : "Setup",
+    },
+    {
+      label: "Public rating page",
+      complete: true,
+      status: "Available",
+    },
+  ];
+
+  const setupPercentage = Math.round(
+    (setupItems.filter((item) => item.complete).length /
+      setupItems.length) *
+      100
+  );
 
   return (
-    <Box sx={{ width: "100%", overflow: "hidden" }}>
+    <Box sx={{ width: "100%", minWidth: 0, pb: { xs: 1, sm: 2 } }}>
       <MotionBox
-        initial={{ opacity: 0, y: 18 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
+        variants={pageVariants}
+        initial="hidden"
+        animate="visible"
       >
         {/* Header */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: {
-              xs: "flex-start",
-              sm: "center",
-            },
-            justifyContent: "space-between",
-            flexDirection: {
-              xs: "column",
-              sm: "row",
-            },
-            gap: 2,
-            mb: {
-              xs: 2.5,
-              sm: 3.5,
-            },
-          }}
-        >
-          <Box>
-            <Stack
-              direction="row"
-              spacing={0.8}
-              alignItems="center"
-              sx={{ mb: 0.8 }}
-            >
-              <BusinessRoundedIcon
-                color="primary"
-                sx={{ fontSize: 20 }}
-              />
+        <MotionBox variants={itemVariants} sx={{ mb: { xs: 1.5, sm: 3 } }}>
+          <Stack
+            direction={{ xs: "row", sm: "row" }}
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
+                sx={{ mb: 0.4 }}
+              >
+                <BusinessRoundedIcon
+                  sx={{ color: "primary.main", fontSize: 16 }}
+                />
+                <Typography
+                  sx={{
+                    color: "primary.main",
+                    fontWeight: 800,
+                    fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                    letterSpacing: 0.8,
+                  }}
+                >
+                  YOUR BUSINESS
+                </Typography>
+              </Stack>
 
               <Typography
-                color="primary"
-                fontWeight={800}
-                fontSize={13}
-                letterSpacing="0.04em"
+                component="h1"
+                sx={{
+                  fontSize: { xs: "1.25rem", sm: "2rem" },
+                  fontWeight: 900,
+                  letterSpacing: "-0.04em",
+                  lineHeight: 1.2,
+                }}
               >
-                BUSINESS PROFILE
+                Business Profile
               </Typography>
-            </Stack>
 
-            <Typography
-              component="h1"
-              fontWeight={900}
+              <Typography
+                color="text.secondary"
+                sx={{
+                  mt: 0.4,
+                  fontSize: { xs: "0.72rem", sm: "0.92rem" },
+                }}
+              >
+                Manage your business details.
+              </Typography>
+            </Box>
+
+            <Button
+              component={Link}
+              to="/business/profile/edit"
+              variant="contained"
+              size="small"
+              startIcon={<EditRoundedIcon />}
               sx={{
-                fontSize: {
-                  xs: "1.8rem",
-                  sm: "2.3rem",
+                flexShrink: 0,
+                minHeight: { xs: 34, sm: 44 },
+                px: { xs: 1, sm: 2 },
+                borderRadius: 2,
+                fontWeight: 800,
+                fontSize: { xs: "0.7rem", sm: "0.875rem" },
+                whiteSpace: "nowrap",
+                boxShadow: "none",
+                "& .MuiButton-startIcon": {
+                  mr: { xs: 0.5, sm: 1 },
                 },
-                lineHeight: 1.15,
-                letterSpacing: "-0.03em",
               }}
             >
-              Business Profile
-            </Typography>
+              Edit
+            </Button>
+          </Stack>
+        </MotionBox>
 
-            <Typography
-              color="text.secondary"
-              sx={{
-                mt: 0.7,
-                fontSize: {
-                  xs: "0.9rem",
-                  sm: "1rem",
-                },
-              }}
-            >
-              View and manage your business information.
-            </Typography>
-          </Box>
-
-          <Button
-            component={Link}
-            to="/business/profile/edit"
-            variant="contained"
-            startIcon={<EditRoundedIcon />}
-            sx={{
-              width: {
-                xs: "100%",
-                sm: "auto",
-              },
-              minHeight: 44,
-              px: 2.2,
-              borderRadius: 2.5,
-              fontWeight: 800,
-            }}
-          >
-            Edit Profile
-          </Button>
-        </Box>
-
-        <Grid container spacing={{ xs: 2, md: 2.5 }}>
+        <Grid container spacing={{ xs: 1.2, sm: 2, md: 2.5 }}>
           {/* Main Profile */}
           <Grid size={{ xs: 12, md: 8 }}>
             <MotionCard
-              whileHover={{
-                y: -2,
-              }}
-              transition={{
-                duration: 0.2,
-              }}
+              variants={itemVariants}
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.2 }}
               elevation={0}
               sx={{
                 height: "100%",
-                borderRadius: {
-                  xs: 3,
-                  sm: 4,
-                },
                 border: "1px solid",
                 borderColor: "divider",
+                borderRadius: { xs: 2.5, sm: 4 },
                 overflow: "hidden",
+                backgroundImage: "none",
               }}
             >
-              <CardContent
+              <Box
                 sx={{
-                  p: {
-                    xs: 2.2,
-                    sm: 3,
-                    md: 4,
-                  },
+                  height: 3,
+                  background:
+                    "linear-gradient(90deg, #2563eb, #60a5fa, #a78bfa)",
                 }}
-              >
-                {/* Business Identity */}
-                <Stack
-                  direction={{
-                    xs: "column",
-                    sm: "row",
-                  }}
-                  spacing={2}
-                  alignItems={{
-                    xs: "flex-start",
-                    sm: "center",
-                  }}
-                >
-                  <Avatar
-                    src={logo || undefined}
-                    alt={businessName}
-                    sx={{
-                      width: {
-                        xs: 72,
-                        sm: 88,
-                      },
-                      height: {
-                        xs: 72,
-                        sm: 88,
-                      },
-                      borderRadius: 3,
-                      fontSize: {
-                        xs: 25,
-                        sm: 30,
-                      },
-                      fontWeight: 800,
-                      bgcolor: "primary.main",
-                      boxShadow:
-                        "0 10px 25px rgba(37,99,235,0.18)",
-                    }}
-                  >
-                    {businessName.charAt(0).toUpperCase()}
-                  </Avatar>
+              />
 
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography
-                      variant="h5"
-                      fontWeight={900}
+              <CardContent sx={{ p: { xs: 1.5, sm: 3, md: 3.5 } }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={{ xs: 1.2, sm: 2 }}
+                  sx={{ minWidth: 0 }}
+                >
+                  <MotionBox
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Avatar
+                      src={logo || undefined}
+                      alt={businessName}
                       sx={{
-                        fontSize: {
-                          xs: "1.35rem",
-                          sm: "1.55rem",
-                        },
-                        wordBreak: "break-word",
+                        width: { xs: 48, sm: 78 },
+                        height: { xs: 48, sm: 78 },
+                        borderRadius: { xs: 2, sm: 3 },
+                        bgcolor: "primary.main",
+                        fontSize: { xs: 20, sm: 28 },
+                        fontWeight: 900,
+                        boxShadow: "0 5px 14px rgba(37,99,235,0.16)",
+                      }}
+                    >
+                      {businessName.charAt(0).toUpperCase()}
+                    </Avatar>
+                  </MotionBox>
+
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "0.98rem", sm: "1.5rem" },
+                        fontWeight: 900,
+                        lineHeight: 1.3,
+                        overflowWrap: "anywhere",
                       }}
                     >
                       {businessName}
@@ -274,35 +275,41 @@ export default function Profile() {
                       color="primary"
                       variant="outlined"
                       sx={{
-                        mt: 1,
+                        mt: 0.6,
+                        height: { xs: 21, sm: 24 },
+                        maxWidth: "100%",
+                        fontSize: { xs: "0.65rem", sm: "0.75rem" },
                         fontWeight: 700,
                       }}
                     />
                   </Box>
                 </Stack>
 
-                {/* About */}
+                {/* Description */}
                 <Box
                   sx={{
-                    mt: 3,
-                    pt: 2.5,
+                    mt: { xs: 1.8, sm: 3 },
+                    pt: { xs: 1.5, sm: 2.5 },
                     borderTop: "1px solid",
                     borderColor: "divider",
                   }}
                 >
                   <Typography
-                    variant="subtitle1"
-                    fontWeight={800}
+                    sx={{
+                      fontSize: { xs: "0.82rem", sm: "1rem" },
+                      fontWeight: 800,
+                      mb: 0.5,
+                    }}
                   >
-                    About the business
+                    About your business
                   </Typography>
 
                   <Typography
                     color="text.secondary"
                     sx={{
-                      mt: 0.8,
-                      lineHeight: 1.75,
-                      fontSize: "0.94rem",
+                      fontSize: { xs: "0.77rem", sm: "0.93rem" },
+                      lineHeight: { xs: 1.6, sm: 1.8 },
+                      overflowWrap: "anywhere",
                     }}
                   >
                     {description}
@@ -310,153 +317,193 @@ export default function Profile() {
                 </Box>
 
                 {/* Contact Information */}
-                <Grid
-                  container
-                  spacing={1.5}
-                  sx={{ mt: 1.5 }}
+                <Box sx={{ mt: { xs: 1.8, sm: 3 } }}>
+                  <Typography
+                    sx={{
+                      fontSize: { xs: "0.82rem", sm: "1rem" },
+                      fontWeight: 800,
+                      mb: { xs: 1, sm: 1.5 },
+                    }}
+                  >
+                    Contact information
+                  </Typography>
+
+                  <Grid container spacing={{ xs: 1, sm: 1.5 }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <InfoBox
+                        icon={<EmailRoundedIcon />}
+                        label="Email"
+                        value={email}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <InfoBox
+                        icon={<PhoneRoundedIcon />}
+                        label="Phone"
+                        value={phone}
+                      />
+                    </Grid>
+
+                    <Grid size={{ xs: 12 }}>
+                      <InfoBox
+                        icon={<LocationOnRoundedIcon />}
+                        label="Business address"
+                        value={address}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Button
+                  component={Link}
+                  to="/business/profile/edit"
+                  endIcon={<ArrowForwardRoundedIcon />}
+                  fullWidth
+                  size="small"
+                  sx={{
+                    mt: { xs: 1.5, sm: 2.5 },
+                    minHeight: { xs: 36, sm: 43 },
+                    borderRadius: 2,
+                    fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                    fontWeight: 800,
+                    bgcolor: "action.hover",
+                    color: "text.primary",
+                    "&:hover": { bgcolor: "action.selected" },
+                  }}
                 >
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <InfoBox
-                      icon={<EmailRoundedIcon />}
-                      label="Email"
-                      value={email}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <InfoBox
-                      icon={<PhoneRoundedIcon />}
-                      label="Phone"
-                      value={phone}
-                    />
-                  </Grid>
-
-                  <Grid size={{ xs: 12 }}>
-                    <InfoBox
-                      icon={<LocationOnRoundedIcon />}
-                      label="Business Address"
-                      value={address}
-                    />
-                  </Grid>
-                </Grid>
+                  Update details
+                </Button>
               </CardContent>
             </MotionCard>
           </Grid>
 
-          {/* Profile Setup */}
+          {/* Setup Card */}
           <Grid size={{ xs: 12, md: 4 }}>
             <MotionCard
-              whileHover={{
-                y: -2,
-              }}
-              transition={{
-                duration: 0.2,
-              }}
+              variants={itemVariants}
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.2 }}
               elevation={0}
               sx={{
                 height: "100%",
-                borderRadius: {
-                  xs: 3,
-                  sm: 4,
-                },
                 border: "1px solid",
                 borderColor: "divider",
+                borderRadius: { xs: 2.5, sm: 4 },
+                backgroundImage: "none",
               }}
             >
-              <CardContent
-                sx={{
-                  p: {
-                    xs: 2.2,
-                    sm: 3,
-                  },
-                }}
-              >
+              <CardContent sx={{ p: { xs: 1.5, sm: 2.5, md: 3 } }}>
                 <Typography
-                  variant="h6"
-                  fontWeight={900}
-                >
-                  Profile Setup
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
                   sx={{
-                    mt: 0.7,
-                    lineHeight: 1.7,
+                    fontSize: { xs: "0.95rem", sm: "1.1rem" },
+                    fontWeight: 900,
                   }}
                 >
-                  Keep your business profile complete so
-                  customers get accurate information.
+                  Profile setup
                 </Typography>
 
-                <Stack spacing={1.3} sx={{ mt: 2.5 }}>
-                  <SetupRow
-                    label="Business information"
-                    status={
-                      business?.businessName ||
-                      business?.name
-                        ? "Complete"
-                        : "Missing"
-                    }
-                    color={
-                      business?.businessName ||
-                      business?.name
-                        ? "success"
-                        : "warning"
-                    }
-                  />
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    mt: 0.5,
+                    fontSize: { xs: "0.74rem", sm: "0.875rem" },
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Keep your business information up to date.
+                </Typography>
 
-                  <SetupRow
-                    label="Google review URL"
-                    status={googleUrl ? "Connected" : "Setup"}
-                    color={googleUrl ? "success" : "warning"}
-                  />
+                {/* Progress */}
+                <Box
+                  sx={{
+                    mt: { xs: 1.5, sm: 2.5 },
+                    p: { xs: 1.3, sm: 2 },
+                    borderRadius: 2.5,
+                    bgcolor: "action.hover",
+                  }}
+                >
+                  <Stack
+                    direction="row"
+                    alignItems="center"
+                    justifyContent="space-between"
+                  >
+                    <Typography
+                      sx={{
+                        fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                        fontWeight: 700,
+                      }}
+                    >
+                      Setup progress
+                    </Typography>
 
-                  <SetupRow
-                    label="Public rating page"
-                    status="Available"
-                    color="success"
-                  />
+                    <Typography
+                      color="primary.main"
+                      sx={{
+                        fontSize: { xs: "0.8rem", sm: "0.95rem" },
+                        fontWeight: 900,
+                      }}
+                    >
+                      {setupPercentage}%
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      mt: 1,
+                      height: 5,
+                      borderRadius: 99,
+                      bgcolor: "action.selected",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <MotionBox
+                      initial={{ width: 0 }}
+                      animate={{ width: `${setupPercentage}%` }}
+                      transition={{ duration: 0.7, ease: "easeOut" }}
+                      sx={{
+                        height: "100%",
+                        borderRadius: 99,
+                        bgcolor: "primary.main",
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                {/* Checklist */}
+                <Stack spacing={1} sx={{ mt: { xs: 1.5, sm: 2.5 } }}>
+                  {setupItems.map((item, index) => (
+                    <MotionBox
+                      key={item.label}
+                      initial={{ opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{
+                        delay: 0.1 + index * 0.08,
+                        duration: 0.25,
+                      }}
+                    >
+                      <SetupRow
+                        label={item.label}
+                        status={item.status}
+                        complete={item.complete}
+                      />
+                    </MotionBox>
+                  ))}
                 </Stack>
 
-                {/* Action Buttons */}
-                <Stack spacing={1.2} sx={{ mt: 2.5 }}>
-                  <Button
-                    component={Link}
+                {/* Quick links */}
+                <Stack spacing={1} sx={{ mt: { xs: 1.5, sm: 2.5 } }}>
+                  <ActionButton
                     to="/business/google-settings"
-                    variant="outlined"
-                    startIcon={<GoogleIcon />}
-                    endIcon={<ArrowForwardRoundedIcon />}
-                    fullWidth
-                    sx={{
-                      minHeight: 46,
-                      borderRadius: 2.5,
-                      justifyContent: "space-between",
-                      px: 2,
-                      fontWeight: 800,
-                    }}
-                  >
-                    Google Settings
-                  </Button>
+                    icon={<GoogleIcon />}
+                    label="Google Settings"
+                  />
 
-                  <Button
-                    component={Link}
+                  <ActionButton
                     to="/business/public-page"
-                    variant="outlined"
-                    startIcon={<PublicRoundedIcon />}
-                    endIcon={<ArrowForwardRoundedIcon />}
-                    fullWidth
-                    sx={{
-                      minHeight: 46,
-                      borderRadius: 2.5,
-                      justifyContent: "space-between",
-                      px: 2,
-                      fontWeight: 800,
-                    }}
-                  >
-                    Public Page
-                  </Button>
+                    icon={<PublicRoundedIcon />}
+                    label="Public Rating Page"
+                  />
                 </Stack>
               </CardContent>
             </MotionCard>
@@ -469,86 +516,95 @@ export default function Profile() {
 
 function InfoBox({ icon, label, value }) {
   return (
-    <Box
+    <MotionBox
+      whileHover={{ y: -1 }}
+      transition={{ duration: 0.15 }}
       sx={{
-        p: {
-          xs: 1.7,
-          sm: 2,
-        },
+        display: "flex",
+        alignItems: "flex-start",
+        gap: { xs: 1, sm: 1.5 },
+        p: { xs: 1.1, sm: 1.7 },
+        minWidth: 0,
         height: "100%",
-        borderRadius: 2.8,
-        backgroundColor: "action.hover",
-        transition: "all 0.2s ease",
-        "&:hover": {
-          backgroundColor: "action.selected",
-          transform: "translateY(-2px)",
-        },
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: { xs: 2, sm: 2.5 },
+        transition: "background-color 0.2s",
+        "&:hover": { bgcolor: "action.hover" },
       }}
     >
-      <Stack
-        direction="row"
-        spacing={1.3}
-        alignItems="flex-start"
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          width: { xs: 30, sm: 37 },
+          height: { xs: 30, sm: 37 },
+          borderRadius: 1.8,
+          color: "primary.main",
+          bgcolor: "action.hover",
+          "& svg": { fontSize: { xs: 17, sm: 20 } },
+        }}
       >
-        <Box
+        {icon}
+      </Box>
+
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography
           sx={{
-            display: "flex",
-            color: "primary.main",
-            mt: 0.1,
-            "& svg": {
-              fontSize: 21,
-            },
+            display: "block",
+            mb: 0.3,
+            fontSize: { xs: "0.68rem", sm: "0.8rem" },
+            color: "text.secondary",
           }}
         >
-          {icon}
-        </Box>
+          {label}
+        </Typography>
 
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-          >
-            {label}
-          </Typography>
-
-          <Typography
-            fontWeight={700}
-            sx={{
-              mt: 0.4,
-              wordBreak: "break-word",
-              lineHeight: 1.5,
-              fontSize: {
-                xs: "0.9rem",
-                sm: "0.95rem",
-              },
-            }}
-          >
-            {value}
-          </Typography>
-        </Box>
-      </Stack>
-    </Box>
+        <Typography
+          sx={{
+            fontSize: { xs: "0.76rem", sm: "0.9rem" },
+            fontWeight: 700,
+            lineHeight: 1.45,
+            overflowWrap: "anywhere",
+          }}
+        >
+          {value}
+        </Typography>
+      </Box>
+    </MotionBox>
   );
 }
 
-function SetupRow({ label, status, color }) {
+function SetupRow({ label, status, complete }) {
   return (
     <Box
       sx={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
-        gap: 1,
-        p: 1.2,
+        gap: 0.8,
+        p: { xs: 1, sm: 1.3 },
+        border: "1px solid",
+        borderColor: "divider",
         borderRadius: 2,
-        backgroundColor: "action.hover",
       }}
     >
-      <Typography
-        variant="body2"
+      <CheckCircleRoundedIcon
         sx={{
-          fontWeight: 600,
+          fontSize: { xs: 16, sm: 19 },
+          flexShrink: 0,
+          color: complete ? "success.main" : "text.disabled",
+        }}
+      />
+
+      <Typography
+        sx={{
+          flex: 1,
           minWidth: 0,
+          fontSize: { xs: "0.72rem", sm: "0.82rem" },
+          fontWeight: 650,
+          lineHeight: 1.4,
         }}
       >
         {label}
@@ -557,12 +613,54 @@ function SetupRow({ label, status, color }) {
       <Chip
         label={status}
         size="small"
-        color={color}
+        color={complete ? "success" : "warning"}
+        variant="outlined"
         sx={{
           flexShrink: 0,
+          height: { xs: 20, sm: 24 },
           fontWeight: 700,
+          fontSize: { xs: "0.61rem", sm: "0.68rem" },
+          maxWidth: "45%",
+          "& .MuiChip-label": {
+            px: { xs: 0.7, sm: 1 },
+          },
         }}
       />
     </Box>
+  );
+}
+
+function ActionButton({ to, icon, label }) {
+  return (
+    <Button
+      component={Link}
+      to={to}
+      variant="outlined"
+      fullWidth
+      size="small"
+      startIcon={icon}
+      endIcon={<ArrowForwardRoundedIcon />}
+      sx={{
+        minHeight: { xs: 38, sm: 46 },
+        px: { xs: 1.2, sm: 1.7 },
+        borderRadius: 2,
+        justifyContent: "space-between",
+        fontSize: { xs: "0.72rem", sm: "0.875rem" },
+        fontWeight: 800,
+        textTransform: "none",
+        transition: "transform 0.2s, background-color 0.2s",
+        "&:hover": { transform: "translateX(2px)" },
+        "& .MuiButton-startIcon": {
+          mr: { xs: 0.7, sm: 1 },
+          "& svg": { fontSize: { xs: 17, sm: 20 } },
+        },
+        "& .MuiButton-endIcon": {
+          ml: 0.5,
+          "& svg": { fontSize: { xs: 17, sm: 20 } },
+        },
+      }}
+    >
+      {label}
+    </Button>
   );
 }

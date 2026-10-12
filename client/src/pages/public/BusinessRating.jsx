@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+
 import { useParams } from "react-router-dom";
+
 import {
-  Alert,
   Avatar,
   Box,
   Button,
@@ -15,64 +16,169 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+
 import { AnimatePresence, motion } from "framer-motion";
 
 import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
+
 import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
+
 import LocationOnRoundedIcon from "@mui/icons-material/LocationOnRounded";
+
 import PhoneRoundedIcon from "@mui/icons-material/PhoneRounded";
+
 import ArrowOutwardRoundedIcon from "@mui/icons-material/ArrowOutwardRounded";
+
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
+
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 
 import StarSelector from "../../components/reviews/StarSelector";
+
 import ReviewGenerator from "../../components/reviews/ReviewGenerator";
+
 import GoogleReviewButton from "../../components/reviews/GoogleReviewButton";
+
 import businessService from "../../services/businessService";
+
 import { recordRating, recordVisitor } from "../../services/reviewService";
 
+import InstagramIcon from "@mui/icons-material/Instagram";
+
+import FacebookRoundedIcon from "@mui/icons-material/FacebookRounded";
+
+import YouTubeIcon from "@mui/icons-material/YouTube";
+
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+
+import XIcon from "@mui/icons-material/X";
+
 const MotionBox = motion(Box);
+
 const MotionPaper = motion(Paper);
 
 const normalizeWebsite = (url) => {
   if (!url) return "";
+
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 };
 
 const ratingMessages = {
   1: "We're sorry. Your feedback matters to us.",
+
   2: "Thanks for sharing. We can do better.",
+
   3: "Thanks for your honest feedback.",
+
   4: "Great! We're glad you had a good experience.",
+
   5: "Excellent! Thank you for your support.",
 };
 
 const colors = {
   primary: "#3158c9",
+
   primaryDark: "#2346ad",
+
   text: "#17223d",
+
   muted: "#718096",
+
   border: "#e2e8f0",
+
   background: "#f5f7fc",
 };
 
+const SOCIAL_PLATFORMS = [
+  {
+    key: "instagram",
+
+    label: "Instagram",
+
+    Icon: InstagramIcon,
+
+    color: "#E4405F",
+  },
+
+  {
+    key: "facebook",
+
+    label: "Facebook",
+
+    Icon: FacebookRoundedIcon,
+
+    color: "#1877F2",
+  },
+
+  {
+    key: "youtube",
+
+    label: "YouTube",
+
+    Icon: YouTubeIcon,
+
+    color: "#FF0000",
+  },
+
+  {
+    key: "whatsapp",
+
+    label: "WhatsApp",
+
+    Icon: WhatsAppIcon,
+
+    color: "#25D366",
+  },
+
+  {
+    key: "linkedin",
+
+    label: "LinkedIn",
+
+    Icon: LinkedInIcon,
+
+    color: "#0A66C2",
+  },
+
+  {
+    key: "x",
+
+    label: "X",
+
+    Icon: XIcon,
+
+    color: "#000000",
+  },
+];
+
 export default function BusinessRating() {
   const { businessId, slug, id } = useParams();
+
   const identifier = businessId || slug || id || "";
 
   const [business, setBusiness] = useState(null);
+
   const [googleBusiness, setGoogleBusiness] = useState(null);
+
   const [rating, setRating] = useState(0);
+
   const [review, setReview] = useState("");
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
+
   const [retryKey, setRetryKey] = useState(0);
 
   const loadBusiness = useCallback(
     async (mountedRef) => {
       if (!identifier) {
         setError("Business page not found.");
+
         setLoading(false);
+
         return;
       }
 
@@ -97,11 +203,14 @@ export default function BusinessRating() {
 
         if (data.publicPageEnabled === false) {
           setBusiness(null);
+
           setError("This business's public rating page is currently disabled.");
+
           return;
         }
 
         setBusiness(data);
+
         setGoogleBusiness(
           response?.data?.googleBusiness || response?.googleBusiness || null,
         );
@@ -121,6 +230,7 @@ export default function BusinessRating() {
         if (mountedRef.current) setLoading(false);
       }
     },
+
     [identifier],
   );
 
@@ -128,6 +238,7 @@ export default function BusinessRating() {
     const mountedRef = { current: true };
 
     setLoading(true);
+
     loadBusiness(mountedRef);
 
     return () => {
@@ -139,6 +250,7 @@ export default function BusinessRating() {
     const selectedRating = Number(value) || 0;
 
     setRating(selectedRating);
+
     setReview("");
 
     if (!selectedRating || !identifier) return;
@@ -146,6 +258,7 @@ export default function BusinessRating() {
     try {
       await recordRating({
         businessId: identifier,
+
         rating: selectedRating,
       });
     } catch (err) {
@@ -156,16 +269,23 @@ export default function BusinessRating() {
   const businessName = business?.businessName || business?.name || "Business";
 
   const logoUrl = business?.logo || business?.logoUrl || "";
+
   const category = business?.category || business?.businessCategory || "";
+
   const phone = business?.phone || business?.mobile || "";
 
   const address = [
     business?.address,
+
     business?.city,
+
     business?.state,
+
     business?.country,
   ]
+
     .filter(Boolean)
+
     .join(", ");
 
   const website = business?.website || "";
@@ -183,22 +303,31 @@ export default function BusinessRating() {
 
   const cardSx = {
     border: `1px solid ${colors.border}`,
+
     borderRadius: { xs: "18px", sm: "22px" },
+
     bgcolor: "#fff",
+
     boxShadow: "0 8px 30px rgba(15, 23, 42, 0.045)",
+
     overflow: "hidden",
   };
 
   const sectionSx = {
     px: { xs: 2, sm: 3.5 },
+
     py: { xs: 2.5, sm: 3 },
   };
 
   const buttonSx = {
     minHeight: 46,
+
     borderRadius: "12px",
+
     fontWeight: 750,
+
     textTransform: "none",
+
     boxShadow: "none",
   };
 
@@ -206,22 +335,30 @@ export default function BusinessRating() {
     <Box
       sx={{
         minHeight: "100dvh",
+
         px: { xs: 1.25, sm: 2.5 },
+
         py: { xs: 2, sm: 4 },
+
         overflowX: "hidden",
+
         bgcolor: colors.background,
+
         backgroundImage:
           "radial-gradient(ellipse at top, #e8eeff 0%, #f5f7fc 55%, #f8fafc 100%)",
       }}
     >
       <Container maxWidth="sm" disableGutters>
         {/* Loading state: page structure appears immediately */}
+
         {!business && loading && (
           <MotionPaper elevation={0} sx={cardSx}>
             <Box
               sx={{
                 ...sectionSx,
+
                 textAlign: "center",
+
                 background: "linear-gradient(135deg, #edf2ff, #fff)",
               }}
             >
@@ -231,7 +368,9 @@ export default function BusinessRating() {
                 height={86}
                 sx={{ mx: "auto", mb: 2 }}
               />
+
               <Skeleton width="55%" height={34} sx={{ mx: "auto" }} />
+
               <Skeleton width="30%" height={25} sx={{ mx: "auto" }} />
             </Box>
 
@@ -239,7 +378,9 @@ export default function BusinessRating() {
 
             <Box sx={{ ...sectionSx, textAlign: "center" }}>
               <Skeleton width="75%" height={35} sx={{ mx: "auto" }} />
+
               <Skeleton width="55%" height={28} sx={{ mx: "auto", mb: 2 }} />
+
               <Stack direction="row" justifyContent="center" spacing={1}>
                 {[1, 2, 3, 4, 5].map((item) => (
                   <Skeleton
@@ -256,6 +397,7 @@ export default function BusinessRating() {
         )}
 
         {/* Error state */}
+
         {!business && !loading && (
           <MotionPaper
             initial={{ opacity: 0, y: 8 }}
@@ -266,13 +408,21 @@ export default function BusinessRating() {
             <Box
               sx={{
                 width: 58,
+
                 height: 58,
+
                 mx: "auto",
+
                 mb: 2,
+
                 display: "grid",
+
                 placeItems: "center",
+
                 borderRadius: "18px",
+
                 bgcolor: "#eef2ff",
+
                 color: colors.primary,
               }}
             >
@@ -297,9 +447,13 @@ export default function BusinessRating() {
               onClick={() => setRetryKey((previous) => previous + 1)}
               sx={{
                 ...buttonSx,
+
                 px: 3,
+
                 color: "#fff",
+
                 bgcolor: colors.primary,
+
                 "&:hover": { bgcolor: colors.primaryDark },
               }}
             >
@@ -309,6 +463,7 @@ export default function BusinessRating() {
         )}
 
         {/* Main rating page */}
+
         {business && (
           <MotionBox
             initial={{ opacity: 0, y: 10 }}
@@ -317,10 +472,13 @@ export default function BusinessRating() {
           >
             <Paper elevation={0} sx={cardSx}>
               {/* Business profile */}
+
               <Box
                 sx={{
                   ...sectionSx,
+
                   textAlign: "center",
+
                   background:
                     "linear-gradient(135deg, #edf2ff 0%, #f8faff 48%, #fff 100%)",
                 }}
@@ -332,13 +490,21 @@ export default function BusinessRating() {
                       alt={`${businessName} logo`}
                       sx={{
                         width: { xs: 82, sm: 94 },
+
                         height: { xs: 82, sm: 94 },
+
                         bgcolor: "#fff",
+
                         color: colors.primary,
+
                         border: "3px solid #fff",
+
                         boxShadow: "0 8px 24px rgba(30,51,100,.10)",
+
                         fontSize: 28,
+
                         fontWeight: 850,
+
                         "& img": { objectFit: "contain" },
                       }}
                     >
@@ -348,14 +514,23 @@ export default function BusinessRating() {
                     <Box
                       sx={{
                         position: "absolute",
+
                         right: -3,
+
                         bottom: 0,
+
                         width: 29,
+
                         height: 29,
+
                         display: "grid",
+
                         placeItems: "center",
+
                         borderRadius: "50%",
+
                         bgcolor: "#fff",
+
                         boxShadow: "0 3px 10px rgba(15,23,42,.12)",
                       }}
                     >
@@ -369,10 +544,15 @@ export default function BusinessRating() {
                     <Typography
                       sx={{
                         color: colors.primary,
+
                         fontSize: 10,
+
                         letterSpacing: "1.5px",
+
                         fontWeight: 850,
+
                         textTransform: "uppercase",
+
                         mb: 0.6,
                       }}
                     >
@@ -383,10 +563,15 @@ export default function BusinessRating() {
                       component="h2"
                       sx={{
                         color: colors.text,
+
                         fontSize: { xs: 25, sm: 30 },
+
                         fontWeight: 900,
+
                         letterSpacing: "-.7px",
+
                         lineHeight: 1.25,
+
                         overflowWrap: "anywhere",
                       }}
                     >
@@ -401,44 +586,23 @@ export default function BusinessRating() {
                       </Typography>
                     )}
                   </Box>
-
-                  {website && (
-                    <Button
-                      component="a"
-                      href={normalizeWebsite(website)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      size="small"
-                      startIcon={<LanguageRoundedIcon />}
-                      endIcon={<ArrowOutwardRoundedIcon />}
-                      sx={{
-                        mt: 0.5,
-                        borderRadius: "10px",
-                        px: 1.5,
-                        textTransform: "none",
-                        fontWeight: 750,
-                        color: colors.primary,
-                        bgcolor: "#fff",
-                        border: `1px solid ${colors.border}`,
-                        "&:hover": { bgcolor: "#f5f7ff" },
-                      }}
-                    >
-                      Visit website
-                    </Button>
-                  )}
                 </Stack>
               </Box>
 
               <Divider sx={{ borderColor: colors.border }} />
 
               {/* Rating selection */}
+
               <Box sx={{ ...sectionSx, textAlign: "center" }}>
                 <Typography
                   component="h2"
                   sx={{
                     fontWeight: 900,
+
                     color: colors.text,
+
                     fontSize: { xs: 21, sm: 26 },
+
                     letterSpacing: "-.4px",
                   }}
                 >
@@ -454,9 +618,13 @@ export default function BusinessRating() {
                 <Box
                   sx={{
                     display: "flex",
+
                     justifyContent: "center",
+
                     alignItems: "center",
+
                     width: "100%",
+
                     "& > *": { alignItems: "center" },
                   }}
                 >
@@ -476,8 +644,11 @@ export default function BusinessRating() {
                       <Typography
                         sx={{
                           mt: 1.25,
+
                           fontSize: 13,
+
                           fontWeight: 700,
+
                           color: rating <= 2 ? "#b45309" : "#526da9",
                         }}
                       >
@@ -489,6 +660,7 @@ export default function BusinessRating() {
               </Box>
 
               {/* Review editor */}
+
               <AnimatePresence initial={false}>
                 {rating > 0 && (
                   <MotionBox
@@ -504,11 +676,16 @@ export default function BusinessRating() {
                         variant="outlined"
                         sx={{
                           borderColor: colors.border,
+
                           borderRadius: "16px",
+
                           overflow: "hidden",
+
                           transition: "border-color .2s, box-shadow .2s",
+
                           "&:focus-within": {
                             borderColor: "#91a8f0",
+
                             boxShadow: "0 0 0 3px rgba(49,88,201,.07)",
                           },
                         }}
@@ -524,17 +701,29 @@ export default function BusinessRating() {
                             placeholder="Tell others about your experience with this business..."
                             style={{
                               display: "block",
+
                               width: "100%",
+
                               minHeight: 135,
+
                               maxHeight: 350,
+
                               resize: "vertical",
+
                               border: "none",
+
                               outline: "none",
+
                               background: "transparent",
+
                               color: colors.text,
+
                               fontFamily: "inherit",
+
                               fontSize: 14,
+
                               lineHeight: 1.8,
+
                               boxSizing: "border-box",
                             }}
                           />
@@ -549,14 +738,18 @@ export default function BusinessRating() {
                           spacing={1.25}
                           sx={{
                             px: 1.5,
+
                             py: 1.5,
+
                             bgcolor: "#fafbff",
                           }}
                         >
                           <Typography
                             sx={{
                               color: "#8993a7",
+
                               fontSize: 11,
+
                               textAlign: { xs: "right", sm: "left" },
                             }}
                           >
@@ -580,8 +773,11 @@ export default function BusinessRating() {
                       <Typography
                         sx={{
                           mt: 1.25,
+
                           color: colors.muted,
+
                           fontSize: 11,
+
                           lineHeight: 1.7,
                         }}
                       >
@@ -600,133 +796,240 @@ export default function BusinessRating() {
                 )}
               </AnimatePresence>
 
-              {/* Contact details */}
-              {(address || phone) && (
+              {/* Contact and social links footer */}
+              {(address ||
+                phone ||
+                website ||
+                SOCIAL_PLATFORMS.some(({ key }) =>
+                  String(business?.socialLinks?.[key] || "").trim(),
+                )) && (
                 <>
                   <Divider sx={{ borderColor: colors.border }} />
+                  <Box sx={{ ...sectionSx, bgcolor: "#fafbfe" }}>
 
-                  <Stack
-                    spacing={2}
-                    sx={{
-                      ...sectionSx,
-                      bgcolor: "#fafbfe",
-                    }}
-                  >
-                    {address && (
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 38,
-                            height: 38,
-                            flexShrink: 0,
-                            display: "grid",
-                            placeItems: "center",
-                            borderRadius: "12px",
-                            bgcolor: "#edf2ff",
-                            color: colors.primary,
-                          }}
+                    <Stack spacing={2}>
+                      {address && (
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
                         >
-                          <LocationOnRoundedIcon />
-                        </Box>
-
-                        <Box flex={1} minWidth={0}>
-                          <Typography
+                          <Box
                             sx={{
-                              color: colors.muted,
-                              fontSize: 10,
-                              fontWeight: 850,
-                              letterSpacing: ".7px",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            Business address
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              mt: 0.4,
-                              fontSize: 13,
-                              color: "#34415b",
-                              lineHeight: 1.7,
-                              overflowWrap: "anywhere",
-                            }}
-                          >
-                            {address}
-                          </Typography>
-                        </Box>
-
-                        <Tooltip title="Open in Google Maps">
-                          <IconButton
-                            component="a"
-                            href={locationUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Open address in Google Maps"
-                            size="small"
-                            sx={{
-                              color: colors.primary,
+                              width: 40,
+                              height: 40,
+                              flexShrink: 0,
+                              display: "grid",
+                              placeItems: "center",
+                              borderRadius: "12px",
                               bgcolor: "#edf2ff",
-                              borderRadius: "10px",
+                              color: colors.primary,
                             }}
                           >
-                            <ArrowOutwardRoundedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    )}
+                            <LocationOnRoundedIcon />
+                          </Box>
+                          <Box flex={1} minWidth={0}>
+                            <Typography
+                              sx={{
+                                color: colors.muted,
+                                fontSize: 10,
+                                fontWeight: 850,
+                                letterSpacing: ".7px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Business address
+                            </Typography>
+                            <Typography
+                              sx={{
+                                mt: 0.4,
+                                fontSize: 13,
+                                color: "#34415b",
+                                lineHeight: 1.7,
+                                overflowWrap: "anywhere",
+                              }}
+                            >
+                              {address}
+                            </Typography>
+                          </Box>
+                          <Tooltip title="Open in Google Maps">
+                            <IconButton
+                              component="a"
+                              href={locationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open address in Google Maps"
+                              size="small"
+                              sx={{
+                                color: colors.primary,
+                                bgcolor: "#edf2ff",
+                                borderRadius: "10px",
+                              }}
+                            >
+                              <ArrowOutwardRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      )}
 
-                    {phone && (
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 38,
-                            height: 38,
-                            flexShrink: 0,
-                            display: "grid",
-                            placeItems: "center",
-                            borderRadius: "12px",
-                            bgcolor: "#edf2ff",
-                            color: colors.primary,
-                          }}
+                      {phone && (
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
                         >
-                          <PhoneRoundedIcon />
-                        </Box>
-
-                        <Box flex={1} minWidth={0}>
-                          <Typography
+                          <Box
                             sx={{
-                              color: colors.muted,
-                              fontSize: 10,
-                              fontWeight: 850,
-                              letterSpacing: ".7px",
-                              textTransform: "uppercase",
+                              width: 40,
+                              height: 40,
+                              flexShrink: 0,
+                              display: "grid",
+                              placeItems: "center",
+                              borderRadius: "12px",
+                              bgcolor: "#edf2ff",
+                              color: colors.primary,
                             }}
                           >
-                            Contact
-                          </Typography>
+                            <PhoneRoundedIcon />
+                          </Box>
+                          <Box flex={1} minWidth={0}>
+                            <Typography
+                              sx={{
+                                color: colors.muted,
+                                fontSize: 10,
+                                fontWeight: 850,
+                                letterSpacing: ".7px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Phone
+                            </Typography>
+                            <Link
+                              href={`tel:${phone}`}
+                              underline="hover"
+                              sx={{
+                                display: "inline-block",
+                                mt: 0.4,
+                                fontSize: 13,
+                                fontWeight: 700,
+                                overflowWrap: "anywhere",
+                              }}
+                            >
+                              {phone}
+                            </Link>
+                          </Box>
+                        </Stack>
+                      )}
 
-                          <Link
-                            href={`tel:${phone}`}
-                            underline="hover"
+                      {website && (
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          alignItems="center"
+                        >
+                          <Box
                             sx={{
-                              display: "inline-block",
-                              mt: 0.4,
-                              fontSize: 13,
-                              fontWeight: 700,
-                              overflowWrap: "anywhere",
+                              width: 40,
+                              height: 40,
+                              flexShrink: 0,
+                              display: "grid",
+                              placeItems: "center",
+                              borderRadius: "12px",
+                              bgcolor: "#edf2ff",
+                              color: colors.primary,
                             }}
                           >
-                            {phone}
-                          </Link>
-                        </Box>
-                      </Stack>
+                            <LanguageRoundedIcon />
+                          </Box>
+                          <Box flex={1} minWidth={0}>
+                            <Typography
+                              sx={{
+                                color: colors.muted,
+                                fontSize: 10,
+                                fontWeight: 850,
+                                letterSpacing: ".7px",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              Website
+                            </Typography>
+                            <Link
+                              href={normalizeWebsite(website)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              sx={{
+                                display: "inline-block",
+                                mt: 0.4,
+                                fontSize: 13,
+                                fontWeight: 700,
+                                overflowWrap: "anywhere",
+                              }}
+                            >
+                              Visit our website
+                            </Link>
+                          </Box>
+                          <ArrowOutwardRoundedIcon
+                            sx={{ fontSize: 18, color: colors.primary }}
+                          />
+                        </Stack>
+                      )}
+                    </Stack>
+
+                    {SOCIAL_PLATFORMS.some(({ key }) =>
+                      String(business?.socialLinks?.[key] || "").trim(),
+                    ) && (
+                      <>
+                        <Divider sx={{ my: 2.5, borderColor: colors.border }} />
+                       
+                        <Stack
+                          direction="row"
+                          justifyContent="center"
+                          alignItems="center"
+                          flexWrap="wrap"
+                          gap={1.25}
+                        >
+                          {SOCIAL_PLATFORMS.filter(({ key }) =>
+                            String(business?.socialLinks?.[key] || "").trim(),
+                          ).map(({ key, label, Icon, color }) => (
+                            <Tooltip key={key} title={label} arrow>
+                              <IconButton
+                                component="a"
+                                href={normalizeWebsite(
+                                  String(business.socialLinks[key]).trim(),
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`${businessName} on ${label}`}
+                                sx={{
+                                  width: 46,
+                                  height: 46,
+                                  color,
+                                  bgcolor: "#fff",
+                                  border: `1px solid ${colors.border}`,
+                                  borderRadius: "14px",
+                                  transition: "all .2s ease",
+                                  "&:hover": {
+                                    bgcolor: `${color}12`,
+                                    borderColor: color,
+                                    transform: "translateY(-3px)",
+                                  },
+                                }}
+                              >
+                                <Icon sx={{ fontSize: 23 }} />
+                              </IconButton>
+                            </Tooltip>
+                          ))}
+                        </Stack>
+                      </>
                     )}
-                  </Stack>
+                  </Box>
                 </>
               )}
             </Paper>
 
             {/* Footer */}
+
             <Stack alignItems="center" spacing={0.6} sx={{ py: 2.5 }}>
               <Typography
                 sx={{ color: "#8491a7", fontSize: 12, textAlign: "center" }}

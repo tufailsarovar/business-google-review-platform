@@ -8,6 +8,22 @@ const getUserId = (req) => req.user?.id || req.user?._id;
 
 const getBusiness = async (userId) => Business.findById(userId);
 
+const SOCIAL_LINK_FIELDS = [
+  "instagram",
+  "facebook",
+  "youtube",
+  "whatsapp",
+  "linkedin",
+  "x",
+];
+
+const getSocialLinks = (socialLinks = {}) =>
+  Object.fromEntries(
+    SOCIAL_LINK_FIELDS.map((field) => [
+      field,
+      typeof socialLinks?.[field] === "string" ? socialLinks[field].trim() : "",
+    ]),
+  );
 
 export const getBusinessProfile = async (req, res, next) => {
   try {
@@ -33,6 +49,7 @@ export const getBusinessProfile = async (req, res, next) => {
           business.googleReviewUrl ||
           business.googleUrl ||
           "",
+        socialLinks: getSocialLinks(business.socialLinks),
       },
       googleBusiness,
     });
@@ -40,7 +57,6 @@ export const getBusinessProfile = async (req, res, next) => {
     next(error);
   }
 };
-
 
 const uploadBusinessLogo = (file) =>
   new Promise((resolve, reject) => {
@@ -57,7 +73,6 @@ const uploadBusinessLogo = (file) =>
 
     Readable.from(file.buffer).pipe(stream);
   });
-
 
 export const updateBusinessProfile = async (req, res, next) => {
   try {
@@ -102,12 +117,61 @@ export const updateBusinessProfile = async (req, res, next) => {
       business.phone = req.body.phone;
     }
 
+    // Update only supported social link fields.
+    // Empty strings remove previously saved links.
+    if (req.body.socialLinks !== undefined) {
+      let socialLinks = req.body.socialLinks;
+
+      if (typeof socialLinks === "string") {
+        try {
+          socialLinks = JSON.parse(socialLinks);
+        } catch {
+          return res.status(400).json({
+            success: false,
+            message: "Social links must be a valid object.",
+          });
+        }
+      }
+
+      if (
+        !socialLinks ||
+        typeof socialLinks !== "object" ||
+        Array.isArray(socialLinks)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Social links must be a valid object.",
+        });
+      }
+
+      const currentLinks = getSocialLinks(business.socialLinks);
+
+      for (const field of SOCIAL_LINK_FIELDS) {
+        if (socialLinks[field] !== undefined) {
+          if (typeof socialLinks[field] !== "string") {
+            return res.status(400).json({
+              success: false,
+              message: `${field} link must be a string.`,
+            });
+          }
+
+          currentLinks[field] = socialLinks[field].trim();
+        }
+      }
+
+      business.socialLinks = currentLinks;
+    }
+
     if (req.file) {
       business.logo = await uploadBusinessLogo(req.file);
     } else {
       const suppliedLogo = req.body.logo || req.body.logoUrl;
 
-      if (suppliedLogo && !suppliedLogo.startsWith("blob:")) {
+      if (
+        typeof suppliedLogo === "string" &&
+        suppliedLogo &&
+        !suppliedLogo.startsWith("blob:")
+      ) {
         business.logo = suppliedLogo;
       }
     }
@@ -117,13 +181,15 @@ export const updateBusinessProfile = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Business profile updated successfully.",
-      business,
+      business: {
+        ...business.toObject(),
+        socialLinks: getSocialLinks(business.socialLinks),
+      },
     });
   } catch (error) {
     next(error);
   }
 };
-
 
 export const getPublicBusiness = async (req, res, next) => {
   try {
@@ -140,7 +206,7 @@ export const getPublicBusiness = async (req, res, next) => {
       businessId,
       isActive: true,
     }).select(
-      "businessId businessName name category description address city state country website logo publicPageTitle publicPageDescription",
+      "businessId businessName name category description address city state country website logo publicPageTitle publicPageDescription socialLinks",
     );
 
     if (!business) {
@@ -157,7 +223,10 @@ export const getPublicBusiness = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      business,
+      business: {
+        ...business.toObject(),
+        socialLinks: getSocialLinks(business.socialLinks),
+      },
       googleBusiness,
     });
   } catch (error) {
@@ -247,20 +316,16 @@ export const regenerateBusinessId = async (req, res, next) => {
     } while (
       await Business.exists({
         businessId,
-        _id: {
-          $ne: business._id,
-        },
+        _id: { $ne: business._id },
       })
     );
 
     business.businessId = businessId;
 
-    // Accept the actual uploaded logo file.
     if (req.file) {
       business.logo = await uploadBusinessLogo(req.file);
     }
 
-    // Keep frontend field names compatible with the database.
     if (req.body.businessName !== undefined) {
       business.businessName = req.body.businessName;
     }
@@ -273,7 +338,11 @@ export const regenerateBusinessId = async (req, res, next) => {
       business.phone = req.body.mobile;
     }
 
-    if (req.body.logoUrl && !req.body.logoUrl.startsWith("blob:")) {
+    if (
+      typeof req.body.logoUrl === "string" &&
+      req.body.logoUrl &&
+      !req.body.logoUrl.startsWith("blob:")
+    ) {
       business.logo = req.body.logoUrl;
     }
 
